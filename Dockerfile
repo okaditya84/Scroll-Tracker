@@ -5,13 +5,13 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files from server directory
-COPY package*.json ./
+COPY server/package*.json ./
 
 # Install dependencies
 RUN npm install --omit=dev
 
-# Copy source code
-COPY . .
+# Copy server source code
+COPY server/ ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
