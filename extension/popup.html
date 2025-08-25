@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scroll Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 400px;
+            min-height: 600px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            background: linear-gradient(45deg, #fff, #e0e0e0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .stats-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .analogy-section {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .analogy-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .analogy-icon {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .analogy-text {
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .fun-fact {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 12px;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .auth-section {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .auth-form {
+            margin-top: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .settings-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 0;
+        }
+
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: #4CAF50;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active .toggle-slider {
+            transform: translateX(25px);
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: none;
+            background: transparent;
+            color: white;
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .chart-container {
+            height: 100px;
+            margin: 15px 0;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .time-period-btn {
+            flex: 1;
+            padding: 6px 8px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 11px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+        }
+
+        .time-period-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            opacity: 1;
+            font-weight: 600;
+        }
+
+        .time-period-btn:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Scroll Tracker</h1>
+            <p>Discover the story behind your scrolling!</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="stats">📊 Stats</button>
+            <button class="tab" data-tab="analogies">🎭 Analogies</button>
+            <button class="tab" data-tab="settings">⚙️ Settings</button>
+        </div>
+
+        <!-- Stats Tab -->
+        <div class="tab-content active" id="stats">
+            <div class="stats-section">
+                <div class="section-title">
+                    📈 Analytics
+                </div>
+                
+                <!-- Time Period Selector (only for logged-in users) -->
+                <div id="timePeriodSelector" style="display: none; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 5px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 3px;">
+                        <button class="time-period-btn active" data-period="current">Current</button>
+                        <button class="time-period-btn" data-period="today">Today</button>
+                        <button class="time-period-btn" data-period="week">Week</button>
+                        <button class="time-period-btn" data-period="month">Month</button>
+                    </div>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">Scroll Distance</span>
+                    <span class="stat-value" id="scrollDistance">0 px</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Scroll Time</span>
+                    <span class="stat-value" id="scrollTime">0s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Average Speed</span>
+                    <span class="stat-value" id="scrollSpeed">0 px/s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Session Duration</span>
+                    <span class="stat-value" id="sessionDuration">0s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Scroll Events</span>
+                    <span class="stat-value" id="scrollEvents">0</span>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <small style="opacity: 0.8; font-size: 11px;" id="progressLabel">Daily goal progress</small>
+            </div>
+
+            <div class="buttons">
+                <button class="btn-primary" id="refreshBtn">🔄 Refresh</button>
+                <button class="btn-secondary" id="resetBtn">🗑️ Reset</button>
+                <button class="btn-secondary" id="debugBtn">🐛 Debug</button>
+            </div>
+        </div>
+
+        <!-- Analogies Tab -->
+        <div class="tab-content" id="analogies">
+            <div class="analogy-section">
+                <div class="section-title">
+                    🎭 Fun Analogies
+                </div>
+                <div id="analogyContent">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Generating creative analogies...</p>
+                    </div>
+                </div>
+                
+                <div class="buttons" style="margin-top: 15px;">
+                    <button class="btn-primary" id="generateAnalogyBtn">🎯 Generate New Analogy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settings">
+            <div class="settings-section">
+                <div class="section-title">
+                    ⚙️ Settings
+                </div>
+                
+                <div class="setting-item">
+                    <span>Enable Tracking</span>
+                    <div class="toggle active" id="enableTracking">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <span>Sync to Server</span>
+                    <div class="toggle active" id="syncToServer">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <span>Show Notifications</span>
+                    <div class="toggle active" id="showNotifications">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auth-section">
+                <div class="section-title">
+                    👤 Account
+                </div>
+                <div id="authContent">
+                    <div class="auth-form">
+                        <div class="form-group">
+                            <input type="email" id="email" placeholder="Email">
+                        </div>
+                        <div class="form-group">
+                            <input type="password" id="password" placeholder="Password">
+                        </div>
+                        <button class="btn-primary" id="loginBtn">Login</button>
+                        <button class="btn-secondary" id="registerBtn">Register</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
