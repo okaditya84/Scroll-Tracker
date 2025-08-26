@@ -385,12 +385,11 @@ MIT License - see LICENSE file for details.
 ## 💬 Support
 
 - **GitHub Issues**: Bug reports and feature requests
-- **Email**: [Your contact email]
 - **Documentation**: Comprehensive guides in `/docs`
 
 ---
 
-Made with ❤️ for digital wellness and playful analytics!
+Made by Aditya Jethani
 
 ## 🎉 Fun Stats
 
