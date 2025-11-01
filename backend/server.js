@@ -16,16 +16,36 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const additionalOrigins = (process.env.CORS_ALLOWLIST || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([
+  process.env.FRONTEND_URL,
+  process.env.EXTENSION_URL,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  ...additionalOrigins
+].filter(Boolean)));
+
+const chromeExtensionScheme = 'chrome-extension://';
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL,
-    process.env.EXTENSION_URL,
-    'chrome-extension://*',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin) || origin.startsWith(chromeExtensionScheme)) {
+      return callback(null, true);
+    }
+
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -43,7 +63,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI, {
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+if (!mongoUri) {
+  console.error('❌ MongoDB connection string is missing. Set MONGODB_URI (or legacy MONGO_URI).');
+  process.exit(1);
+}
+
+mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
