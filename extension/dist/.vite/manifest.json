@@ -1,0 +1,53 @@
+{
+  "../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js.js",
+    "name": "crx-manifest.js",
+    "src": "../../../../@crx/manifest",
+    "isEntry": true
+  },
+  "_auth.js": {
+    "file": "assets/auth.js",
+    "name": "auth"
+  },
+  "_client.js": {
+    "file": "assets/client.js",
+    "name": "client"
+  },
+  "src/background/index.ts": {
+    "file": "assets/index.ts2.js",
+    "name": "index.ts",
+    "src": "src/background/index.ts",
+    "isEntry": true,
+    "imports": [
+      "_auth.js"
+    ]
+  },
+  "src/content/index.ts": {
+    "file": "assets/index.ts.js",
+    "name": "index.ts",
+    "src": "src/content/index.ts",
+    "isEntry": true
+  },
+  "src/options/index.html": {
+    "file": "assets/index.html.js",
+    "name": "index.html",
+    "src": "src/options/index.html",
+    "isEntry": true,
+    "imports": [
+      "_client.js"
+    ]
+  },
+  "src/popup/index.html": {
+    "file": "assets/index.html2.js",
+    "name": "index.html",
+    "src": "src/popup/index.html",
+    "isEntry": true,
+    "imports": [
+      "_client.js",
+      "_auth.js"
+    ],
+    "css": [
+      "assets/index-CIaPxz_1.css"
+    ]
+  }
+}

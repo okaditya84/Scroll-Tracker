@@ -1,0 +1,270 @@
+import mongoose from 'mongoose';
+import DailyMetric from '../models/DailyMetric.js';
+import TrackingEvent from '../models/TrackingEvent.js';
+import { pixelsToClimbometers, pixelsToKilometers } from '../utils/scrollConversion.js';
+export const recordEvents = async (userId, events) => {
+    const docs = events.map(event => ({
+        userId: new mongoose.Types.ObjectId(userId),
+        ...event,
+        startedAt: event.startedAt ? new Date(event.startedAt) : undefined
+    }));
+    if (!docs.length) {
+        return;
+    }
+    await TrackingEvent.insertMany(docs, { ordered: false });
+    const impactedDates = new Set();
+    const today = new Date().toISOString().slice(0, 10);
+    impactedDates.add(today);
+    events.forEach(event => {
+        const sourceDate = event.startedAt ? new Date(event.startedAt) : new Date();
+        impactedDates.add(sourceDate.toISOString().slice(0, 10));
+    });
+    await Promise.all([...impactedDates].map(date => aggregateDailyMetrics(userId, date)));
+};
+export const getSummary = async (userId) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const [existingMetric, weeklyData, totals] = await Promise.all([
+        DailyMetric.findOne({ userId, date: today }).lean(),
+        aggregateRange(userId, 7),
+        TrackingEvent.aggregate([
+            { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+            {
+                $group: {
+                    _id: '$type',
+                    count: { $sum: 1 },
+                    durationMs: { $sum: '$durationMs' },
+                    scrollDistance: { $sum: '$scrollDistance' }
+                }
+            }
+        ])
+    ]);
+    let todayMetric = existingMetric;
+    const staleThresholdMs = 2 * 60 * 1000;
+    const needsRefresh = !todayMetric ||
+        !todayMetric.lastComputedAt ||
+        Date.now() - new Date(todayMetric.lastComputedAt).getTime() > staleThresholdMs;
+    if (needsRefresh) {
+        await aggregateDailyMetrics(userId, today);
+        todayMetric = await DailyMetric.findOne({ userId, date: today }).lean();
+    }
+    const totalsMap = totals.reduce((acc, item) => {
+        acc[item._id] = {
+            count: item.count ?? 0,
+            durationMs: item.durationMs ?? 0,
+            scrollDistance: item.scrollDistance ?? 0
+        };
+        return acc;
+    }, {});
+    // Add conversions to today's metric
+    const todayWithConversions = todayMetric
+        ? {
+            ...todayMetric,
+            totals: {
+                ...todayMetric.totals,
+                scrollDistanceCm: pixelsToClimbometers(todayMetric.totals?.scrollDistance ?? 0),
+                scrollDistanceKm: pixelsToKilometers(todayMetric.totals?.scrollDistance ?? 0)
+            }
+        }
+        : null;
+    // Add conversions to weekly data
+    const weeklyWithConversions = weeklyData.map(entry => ({
+        ...entry,
+        scrollDistanceCm: pixelsToClimbometers(entry.scrollDistance),
+        scrollDistanceKm: pixelsToKilometers(entry.scrollDistance)
+    }));
+    return {
+        today: todayWithConversions,
+        weekly: weeklyWithConversions,
+        totals: totalsMap
+    };
+};
+const aggregateRange = async (userId, days) => {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const aggregate = await TrackingEvent.aggregate([
+        {
+            $match: {
+                userId: new mongoose.Types.ObjectId(userId),
+                createdAt: { $gte: since }
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }
+                },
+                scrollDistance: {
+                    $sum: {
+                        $cond: [
+                            { $gt: [{ $ifNull: ['$scrollDistance', 0] }, 0] },
+                            { $ifNull: ['$scrollDistance', 0] },
+                            0
+                        ]
+                    }
+                },
+                activeMinutes: {
+                    $sum: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { $ne: ['$type', 'idle'] },
+                                    { $gt: [{ $ifNull: ['$durationMs', 0] }, 0] }
+                                ]
+                            },
+                            { $divide: [{ $ifNull: ['$durationMs', 0] }, 60000] },
+                            0
+                        ]
+                    }
+                },
+                clickCount: {
+                    $sum: {
+                        $cond: [{ $eq: ['$type', 'click'] }, 1, 0]
+                    }
+                }
+            }
+        },
+        { $sort: { '_id.date': 1 } }
+    ]);
+    return aggregate.map(entry => {
+        const scrollDistance = entry.scrollDistance ?? 0;
+        return {
+            date: entry._id.date,
+            scrollDistance,
+            scrollDistanceCm: pixelsToClimbometers(scrollDistance),
+            scrollDistanceKm: pixelsToKilometers(scrollDistance),
+            activeMinutes: entry.activeMinutes ?? 0,
+            clickCount: entry.clickCount ?? 0
+        };
+    });
+};
+export const getTimeline = async (userId) => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return TrackingEvent.find({ userId, createdAt: { $gte: since } })
+        .sort({ createdAt: -1 })
+        .limit(500)
+        .lean();
+};
+export const getStreaks = async (userId) => {
+    const metrics = await DailyMetric.find({ userId }).sort({ date: -1 }).limit(30).lean();
+    let current = 0;
+    let best = 0;
+    metrics.forEach(metric => {
+        const reached = (metric.totals?.activeMinutes ?? 0) >= 120;
+        if (reached) {
+            current += 1;
+            best = Math.max(best, current);
+        }
+        else {
+            current = 0;
+        }
+    });
+    return { current, best };
+};
+export async function aggregateDailyMetrics(userId, date) {
+    const from = new Date(`${date}T00:00:00.000Z`);
+    const to = new Date(`${date}T23:59:59.999Z`);
+    const aggregate = await TrackingEvent.aggregate([
+        {
+            $match: {
+                userId: new mongoose.Types.ObjectId(userId),
+                createdAt: { $gte: from, $lte: to }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                scrollDistance: {
+                    $sum: {
+                        $cond: [
+                            { $gt: [{ $ifNull: ['$scrollDistance', 0] }, 0] },
+                            { $ifNull: ['$scrollDistance', 0] },
+                            0
+                        ]
+                    }
+                },
+                activeMinutes: {
+                    $sum: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { $ne: ['$type', 'idle'] },
+                                    { $gt: [{ $ifNull: ['$durationMs', 0] }, 0] }
+                                ]
+                            },
+                            { $divide: [{ $ifNull: ['$durationMs', 0] }, 60000] },
+                            0
+                        ]
+                    }
+                },
+                idleMinutes: {
+                    $sum: {
+                        $cond: [
+                            { $eq: ['$type', 'idle'] },
+                            { $divide: [{ $ifNull: ['$durationMs', 0] }, 60000] },
+                            0
+                        ]
+                    }
+                },
+                clickCount: {
+                    $sum: {
+                        $cond: [{ $eq: ['$type', 'click'] }, 1, 0]
+                    }
+                },
+                domains: {
+                    $push: {
+                        domain: '$domain',
+                        durationMs: '$durationMs',
+                        scrollDistance: {
+                            $cond: [
+                                { $gt: [{ $ifNull: ['$scrollDistance', 0] }, 0] },
+                                { $ifNull: ['$scrollDistance', 0] },
+                                0
+                            ]
+                        }
+                    }
+                },
+                hours: { $push: { hour: { $hour: '$createdAt' }, durationMs: '$durationMs' } }
+            }
+        }
+    ]);
+    const totals = aggregate[0];
+    const domainMap = new Map();
+    const hourMap = new Map();
+    totals?.domains?.forEach((item) => {
+        if (!item?.domain) {
+            return;
+        }
+        const key = item.domain.toLowerCase();
+        const current = domainMap.get(key) ?? { domain: item.domain, durationMs: 0, scrollDistance: 0 };
+        current.durationMs += item.durationMs ?? 0;
+        current.scrollDistance += item.scrollDistance ?? 0;
+        domainMap.set(key, current);
+    });
+    totals?.hours?.forEach((item) => {
+        const key = item.hour.toString();
+        const prev = hourMap.get(key) ?? 0;
+        hourMap.set(key, prev + (item.durationMs ?? 0));
+    });
+    const domainBreakdown = Array.from(domainMap.values())
+        .filter(entry => (Number.isFinite(entry.durationMs) && entry.durationMs > 0) || entry.scrollDistance > 0)
+        .sort((a, b) => b.durationMs - a.durationMs)
+        .slice(0, 25)
+        .map(entry => ({
+        domain: entry.domain,
+        durationMs: Math.round(entry.durationMs),
+        scrollDistance: Math.round(entry.scrollDistance)
+    }));
+    await DailyMetric.findOneAndUpdate({ userId, date }, {
+        totals: {
+            scrollDistance: totals?.scrollDistance ?? 0,
+            activeMinutes: totals?.activeMinutes ?? 0,
+            idleMinutes: totals?.idleMinutes ?? 0,
+            clickCount: totals?.clickCount ?? 0
+        },
+        breakdown: {
+            domain: domainBreakdown,
+            hour: Object.fromEntries(hourMap)
+        },
+        lastComputedAt: new Date()
+    }, { upsert: true, setDefaultsOnInsert: true });
+}

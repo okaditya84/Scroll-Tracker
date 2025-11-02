@@ -1,0 +1,45 @@
+{
+  "name": "scrollwise-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next dev",
+    "serve": "next start",
+    "lint": "next lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\""
+  },
+  "dependencies": {
+    "@headlessui/react": "^1.7.18",
+    "@heroicons/react": "^2.1.5",
+    "@radix-ui/react-toast": "^1.1.5",
+    "@react-oauth/google": "^0.12.1",
+    "@tanstack/react-query": "^5.59.7",
+    "@tanstack/react-query-devtools": "^5.59.7",
+    "classnames": "^2.5.1",
+    "date-fns": "^3.6.0",
+    "framer-motion": "^11.2.6",
+    "next": "14.2.12",
+    "next-themes": "^0.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "recharts": "^2.10.4",
+    "tailwind-merge": "^2.5.2",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "@types/react": "^18.3.7",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.35",
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.5.14",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.7.2",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.12"
+  }
+}
