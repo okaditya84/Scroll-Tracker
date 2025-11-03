@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import routes from './routes/index.js';
+import authRoutes from './routes/auth.routes.js';
 import env from './config/env.js';
 import errorHandler from './middleware/errorHandler.js';
 import logger from './utils/logger.js';
@@ -52,6 +53,7 @@ const createServer = () => {
       legacyHeaders: false
     })
   );
+  app.use('/auth', authRoutes);
   app.use('/api', routes);
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.use(errorHandler);
