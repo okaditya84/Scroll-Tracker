@@ -172,11 +172,13 @@ const App = () => {
     <div className="w-[340px] min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-5">
       <header className="mb-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Scrollwise</h1>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Track. Analyze. Optimize.</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="Scrollwise" className="h-8 w-8" />
+            <div>
+              <h1 className="text-xl font-bold">Scrollwise</h1>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Track. Analyze. Optimize.</p>
+            </div>
           </div>
-          <div className="text-2xl">✨</div>
         </div>
       </header>
 

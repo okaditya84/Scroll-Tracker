@@ -7,7 +7,10 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'Scrollwise — Playful browsing coach',
-  description: 'Transform your scrolling into mindful momentum.'
+  description: 'Transform your scrolling into mindful momentum.',
+  icons: {
+    icon: '/logo.svg'
+  }
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

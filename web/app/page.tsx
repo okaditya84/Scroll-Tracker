@@ -51,8 +51,8 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex flex-1 justify-center">
-            <div className="relative h-[420px] w-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/80 shadow-2xl">
-              <Image src="web\image.png" alt="Scrollwise UI" fill className="object-cover" />
+            <div className="relative h-[400px] w-[400px]">
+              <Image src="/logo.svg" alt="Scrollwise Logo" fill className="object-contain" />
             </div>
           </div>
         </header>
