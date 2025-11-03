@@ -56,6 +56,7 @@ GOOGLE_CLIENT_SECRET=...
 GROQ_API_KEY=...
 FRONTEND_URL=http://localhost:3001
 EXTENSION_URL=chrome-extension://<extension-id>
+EXTENSION_URLS=
 CORS_ADDITIONAL_ORIGINS=
 
 # web/.env.local

@@ -12,7 +12,29 @@ import logger from './utils/logger.js';
 
 const isLocalhost = (origin: string) => /^https?:\/\/localhost(?::\d+)?$/i.test(origin);
 
-const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
+const normalizeOrigin = (origin: string) => {
+  if (/^(chrome|moz|ms)-extension:\/\//i.test(origin)) {
+    return origin;
+  }
+  return origin.replace(/\/$/, '');
+};
+
+const originMatches = (incoming: string, allowed: string) => {
+  if (!allowed) {
+    return false;
+  }
+
+  const wildcard = allowed.endsWith('*');
+  const target = wildcard ? allowed.slice(0, -1) : allowed;
+  const normalisedIncoming = normalizeOrigin(incoming);
+  const normalisedAllowed = normalizeOrigin(target);
+
+  if (wildcard) {
+    return normalisedIncoming.startsWith(normalisedAllowed);
+  }
+
+  return normalisedIncoming === normalisedAllowed;
+};
 
 const createServer = () => {
   const app = express();
@@ -30,7 +52,8 @@ const createServer = () => {
         }
 
         const normalisedOrigin = normalizeOrigin(origin);
-        const allowlisted = Array.isArray(env.allowedOrigins) && env.allowedOrigins.includes(normalisedOrigin);
+        const allowlisted = Array.isArray(env.allowedOrigins)
+          && env.allowedOrigins.some(allowed => originMatches(origin, allowed));
         const permitted = allowlisted || (!env.isProduction && isLocalhost(normalisedOrigin));
 
         if (permitted) {

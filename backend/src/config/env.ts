@@ -3,14 +3,17 @@ import { cleanEnv, str, port, num } from 'envalid';
 
 const normalizeOrigin = (value?: string) => {
   if (!value) return undefined;
+  if (/^(chrome|moz|ms)-extension:\/\//i.test(value)) {
+    return value;
+  }
   return value.replace(/\/$/, '');
 };
 
 const parseCsv = (value: string) =>
   value
     .split(',')
-    .map(item => normalizeOrigin(item.trim()))
-    .filter((item): item is string => Boolean(item));
+    .map(item => item.trim())
+    .filter(Boolean);
 
 const raw = cleanEnv(process.env, {
   NODE_ENV: str({ default: 'development', choices: ['development', 'production', 'test'] }),
@@ -24,12 +27,17 @@ const raw = cleanEnv(process.env, {
   GROQ_API_KEY: str(),
   FRONTEND_URL: str(),
   EXTENSION_URL: str(),
+  EXTENSION_URLS: str({ default: '' }),
   CORS_ADDITIONAL_ORIGINS: str({ default: '' })
 });
 
+const extensionOrigins = [raw.EXTENSION_URL, ...parseCsv(raw.EXTENSION_URLS)]
+  .map(entry => entry.trim())
+  .filter(Boolean);
+
 const allowedOrigins = Array.from(
   new Set(
-    [normalizeOrigin(raw.FRONTEND_URL), normalizeOrigin(raw.EXTENSION_URL), ...parseCsv(raw.CORS_ADDITIONAL_ORIGINS)]
+    [normalizeOrigin(raw.FRONTEND_URL), ...extensionOrigins.map(normalizeOrigin), ...parseCsv(raw.CORS_ADDITIONAL_ORIGINS).map(normalizeOrigin)]
       .filter((origin): origin is string => Boolean(origin))
   )
 );
@@ -37,5 +45,6 @@ const allowedOrigins = Array.from(
 export default {
   ...raw,
   isProduction: raw.NODE_ENV === 'production',
-  allowedOrigins
+  allowedOrigins,
+  extensionOrigins
 };
