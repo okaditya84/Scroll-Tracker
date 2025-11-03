@@ -8,6 +8,7 @@ import {
   formatScrollDistanceWithBoth,
   getScrollDistanceDescription
 } from '../utils/scrollConversion.js';
+import logger from '../utils/logger.js';
 
 const toMinutes = (valueMs?: number) => Math.round((valueMs ?? 0) / 60000);
 
@@ -174,8 +175,23 @@ Scroll distance context: You scrolled the equivalent of ${getScrollDistanceDescr
     }
   ];
 
-  const completion = await callGroq(prompt);
-  const sanitized = sanitizeCompletion(completion) || completion.trim();
+  const MAX_ATTEMPTS = 3;
+  let sanitized = '';
+  let completion = '';
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    completion = await callGroq(prompt);
+    sanitized = (sanitizeCompletion(completion) || completion).trim();
+    if (sanitized) {
+      break;
+    }
+    logger.warn({ attempt }, 'LLM returned empty insight content, retrying');
+  }
+
+  if (!sanitized) {
+    logger.error({ completion }, 'Unable to generate insight content');
+    throw new Error('Insight generation is unavailable right now. Please try again in a moment.');
+  }
   const payload = {
     userId,
     title: deriveTitle(sanitized),
