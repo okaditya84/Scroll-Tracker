@@ -7,6 +7,11 @@ import rateLimit from 'express-rate-limit';
 import routes from './routes/index.js';
 import env from './config/env.js';
 import errorHandler from './middleware/errorHandler.js';
+import logger from './utils/logger.js';
+
+const isLocalhost = (origin: string) => /^https?:\/\/localhost(?::\d+)?$/i.test(origin);
+
+const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
 
 const createServer = () => {
   const app = express();
@@ -18,7 +23,24 @@ const createServer = () => {
   app.use(cookieParser());
   app.use(
     cors({
-      origin: [env.FRONTEND_URL, env.EXTENSION_URL],
+      origin(origin, callback) {
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        const normalisedOrigin = normalizeOrigin(origin);
+        const allowlisted = Array.isArray(env.allowedOrigins) && env.allowedOrigins.includes(normalisedOrigin);
+        const permitted = allowlisted || (!env.isProduction && isLocalhost(normalisedOrigin));
+
+        if (permitted) {
+          return callback(null, true);
+        }
+
+        logger.warn({ origin }, 'Blocked CORS origin');
+        const corsError = new Error('Not allowed by CORS');
+        (corsError as any).status = 403;
+        return callback(corsError);
+      },
       credentials: true
     })
   );
