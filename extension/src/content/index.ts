@@ -11,6 +11,7 @@ let runtimeInvalidated = false;
 type ScrollKey = Window | HTMLElement;
 type ScrollSource = 'scroll' | 'wheel' | 'touch' | 'key';
 const MIN_SCROLL_DELTA = 8;
+const IDLE_THRESHOLD_MS = 60_000;
 const scrollOffsets = new WeakMap<ScrollKey, number>();
 scrollOffsets.set(window, window.scrollY);
 
@@ -37,6 +38,37 @@ const isContextInvalidError = (error: unknown) => {
 let flushTimeout: number | undefined;
 let listenersAttached = false;
 
+const clearIdleTimer = () => {
+  if (!idleTimer) return;
+  window.clearTimeout(idleTimer);
+  idleTimer = undefined;
+};
+
+const scheduleIdleTimer = () => {
+  clearIdleTimer();
+  if (!trackingEnabled || document.visibilityState !== 'visible') {
+    return;
+  }
+  idleTimer = window.setTimeout(() => {
+    idleTimer = undefined;
+    if (!trackingEnabled || document.visibilityState !== 'visible') {
+      return;
+    }
+    const now = Date.now();
+    const elapsed = Math.max(now - lastActionAt, IDLE_THRESHOLD_MS);
+    pushEvent({
+      type: 'idle',
+      url: location.href,
+      domain: urlDomain(location.href),
+      durationMs: elapsed,
+      startedAt: new Date(now - elapsed).toISOString(),
+      metadata: { reason: 'pointer-idle', thresholdMs: IDLE_THRESHOLD_MS }
+    });
+    lastActionAt = now;
+    scheduleIdleTimer();
+  }, IDLE_THRESHOLD_MS);
+};
+
 const cancelScheduledFlush = () => {
   if (flushTimeout) {
     window.clearTimeout(flushTimeout);
@@ -54,10 +86,7 @@ const markRuntimeInvalidated = () => {
   runtimeInvalidated = true;
   trackingEnabled = false;
   BUFFER.length = 0;
-  if (idleTimer) {
-    window.clearTimeout(idleTimer);
-    idleTimer = undefined;
-  }
+  clearIdleTimer();
   cancelScheduledFlush();
   cancelScheduledMeasurements();
   if (storageSyncInterval) {
@@ -243,8 +272,10 @@ const setTrackingEnabled = (enabled: boolean) => {
   trackingEnabled = enabled;
   if (!enabled) {
     BUFFER.length = 0;
+    clearIdleTimer();
   } else {
     lastActionAt = Date.now();
+    scheduleIdleTimer();
   }
 };
 
@@ -432,44 +463,48 @@ const handleClick = (event: MouseEvent) => {
     }
   });
   lastActionAt = now;
+  resetIdleTimer();
 };
 
 const resetIdleTimer = () => {
-  if (idleTimer) window.clearTimeout(idleTimer);
-  idleTimer = window.setTimeout(() => {
-    pushEvent({
-      type: 'idle',
-      url: location.href,
-      domain: urlDomain(location.href),
-      durationMs: 60000,
-      startedAt: new Date().toISOString(),
-      metadata: { reason: 'pointer-idle' }
-    });
-  }, 60000);
+  if (!trackingEnabled) {
+    return;
+  }
+  scheduleIdleTimer();
 };
 
 const handleMouseMove = () => {
+  lastActionAt = Date.now();
   resetIdleTimer();
 };
 
 const handleVisibilityChange = () => {
   const nowVisible = document.visibilityState === 'visible';
+  const now = Date.now();
   pushEvent({
     type: nowVisible ? 'focus' : 'blur',
     url: location.href,
     domain: urlDomain(location.href),
-    startedAt: new Date().toISOString()
+    startedAt: new Date(now).toISOString()
   });
+  lastActionAt = now;
   if (!nowVisible) {
+    clearIdleTimer();
     flushBuffer();
+  } else {
+    scheduleIdleTimer();
   }
 };
 
 const handleBeforeUnload = () => {
+  clearIdleTimer();
+  lastActionAt = Date.now();
   flushBuffer();
 };
 
 const handlePageHide = () => {
+  clearIdleTimer();
+  lastActionAt = Date.now();
   flushBuffer();
 };
 
