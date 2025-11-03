@@ -1,4 +1,51 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+type ResolvedBase = { base: string; appended: boolean };
+
+const stripTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+
+const hasApiSegment = (value: string) => /\/api(?:\/|$)/i.test(value);
+
+const resolveApiBase = (raw?: string): ResolvedBase | undefined => {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+
+  const normalised = stripTrailingSlash(trimmed);
+
+  try {
+    const url = new URL(normalised);
+    const path = stripTrailingSlash(url.pathname || '');
+    if (!path || path === '') {
+      url.pathname = '/api';
+      return { base: stripTrailingSlash(url.toString()), appended: true };
+    }
+    if (hasApiSegment(path)) {
+      url.pathname = path;
+      return { base: stripTrailingSlash(url.toString()), appended: false };
+    }
+    url.pathname = `${path}/api`;
+    return { base: stripTrailingSlash(url.toString()), appended: true };
+  } catch {
+    if (hasApiSegment(normalised)) {
+      return { base: normalised, appended: false };
+    }
+    return { base: `${normalised}/api`, appended: true };
+  }
+};
+
+let cachedApiBase: ResolvedBase | undefined;
+
+const getApiBase = () => {
+  if (!cachedApiBase) {
+    cachedApiBase = resolveApiBase(process.env.NEXT_PUBLIC_API_URL);
+    if (!cachedApiBase) {
+      throw new Error('NEXT_PUBLIC_API_URL is not configured');
+    }
+    if (cachedApiBase.appended && typeof window !== 'undefined') {
+      console.warn('[scrollwise] NEXT_PUBLIC_API_URL was missing an /api segment; using', cachedApiBase.base);
+    }
+  }
+  return cachedApiBase.base;
+};
 
 export interface AuthTokens {
   accessToken: string;
@@ -103,11 +150,10 @@ export class ApiError extends Error {
 }
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  if (!API_URL) {
-    throw new Error('NEXT_PUBLIC_API_URL is not configured');
-  }
+  const base = getApiBase();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${base}${normalizedPath}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

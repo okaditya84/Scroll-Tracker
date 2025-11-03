@@ -1,7 +1,51 @@
 import type { AuthState } from '../storage/auth';
 import { getQueuedEvents, removeQueuedEvents } from '../storage/queue';
 
-const API_URL = import.meta.env.VITE_API_URL;
+type ResolvedBase = { base: string; appended: boolean };
+
+const stripTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+const hasApiSegment = (value: string) => /\/api(?:\/|$)/i.test(value);
+
+const resolveApiBase = (raw?: string): ResolvedBase | undefined => {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+
+  const normalised = stripTrailingSlash(trimmed);
+
+  try {
+    const url = new URL(normalised);
+    const path = stripTrailingSlash(url.pathname || '');
+    if (!path || path === '') {
+      url.pathname = '/api';
+      return { base: stripTrailingSlash(url.toString()), appended: true };
+    }
+    if (hasApiSegment(path)) {
+      url.pathname = path;
+      return { base: stripTrailingSlash(url.toString()), appended: false };
+    }
+    url.pathname = `${path}/api`;
+    return { base: stripTrailingSlash(url.toString()), appended: true };
+  } catch {
+    if (hasApiSegment(normalised)) {
+      return { base: normalised, appended: false };
+    }
+    return { base: `${normalised}/api`, appended: true };
+  }
+};
+
+const resolvedBase = resolveApiBase(import.meta.env.VITE_API_URL);
+
+if (!resolvedBase) {
+  throw new Error('VITE_API_URL is not configured');
+}
+
+if (resolvedBase.appended) {
+  // eslint-disable-next-line no-console
+  console.warn('[scrollwise] VITE_API_URL was missing an /api segment; using', resolvedBase.base);
+}
+
+const API_URL = resolvedBase.base;
 
 export interface UploadResult {
   sentIds: string[];
