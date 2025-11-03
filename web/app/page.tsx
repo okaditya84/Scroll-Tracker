@@ -52,7 +52,7 @@ export default function HomePage() {
           </div>
           <div className="flex flex-1 justify-center">
             <div className="relative h-[420px] w-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/80 shadow-2xl">
-              <Image src="/image.png" alt="Scrollwise UI" fill className="object-cover" />
+              <Image src="web\image.png" alt="Scrollwise UI" fill className="object-cover" />
             </div>
           </div>
         </header>
