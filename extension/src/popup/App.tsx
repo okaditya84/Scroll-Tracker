@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Switch } from '@radix-ui/react-switch';
 import type { AuthState } from '@/storage/auth';
 import { getAuthState, updateTrackingEnabled } from '@/storage/auth';
 
@@ -209,19 +208,31 @@ const App = () => {
             initial={{ opacity: 0.5 }}
           >
             <div className="flex items-center justify-between mb-3">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">Tracking Status</p>
                 <p className="text-sm font-semibold mt-1">
                   {auth.trackingEnabled ? '🟢 Active' : '🔴 Paused'}
                 </p>
               </div>
-              <Switch
-                className="relative inline-flex h-6 w-11 cursor-pointer rounded-full bg-slate-300 dark:bg-slate-700 data-[state=checked]:bg-blue-600"
-                checked={auth.trackingEnabled}
-                onCheckedChange={handleToggle}
+              <button
+                onClick={() => handleToggle(!auth.trackingEnabled)}
+                className={`flex items-center justify-center w-12 h-12 rounded-full transition-all ${
+                  auth.trackingEnabled
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-700 text-slate-700 dark:text-white'
+                }`}
+                title={auth.trackingEnabled ? 'Pause tracking' : 'Resume tracking'}
               >
-                <span className="sr-only">Toggle tracking</span>
-              </Switch>
+                {auth.trackingEnabled ? (
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400">
               Updates sync every minute across all tabs
@@ -273,13 +284,21 @@ const App = () => {
             </section>
           )}
 
-          <button
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            onClick={handleLogout}
-            disabled={pending}
-          >
-            {pending ? 'Signing out…' : 'Logout'}
-          </button>
+          <div className="space-y-2">
+            <button
+              className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 py-2 text-sm font-semibold text-white transition"
+              onClick={() => chrome.tabs.create({ url: `${WEB_URL}/dashboard` })}
+            >
+              View Dashboard
+            </button>
+            <button
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              onClick={handleLogout}
+              disabled={pending}
+            >
+              {pending ? 'Signing out…' : 'Logout'}
+            </button>
+          </div>
         </>
       )}
 
