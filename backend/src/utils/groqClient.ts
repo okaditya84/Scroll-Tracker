@@ -30,8 +30,8 @@ export const callGroq = async (messages: GroqMessage[]) => {
         {
           model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
           messages,
-          temperature: 0.8,
-          max_tokens: 512
+          temperature: 0.9, // Increased temperature for more creative responses
+          max_tokens: 600 // Increased token limit for richer insights
         },
         {
           timeout: 20_000,

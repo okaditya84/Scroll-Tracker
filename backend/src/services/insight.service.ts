@@ -161,17 +161,11 @@ export const generateInsight = async (userId: string, metricDate?: string, regen
   const prompt: GroqMessage[] = [
     {
       role: 'system',
-      content: `You are Scrollwise, a personable metrics coach. Craft exactly three sharply different analogies anchored in the provided data.\n- One analogy must focus on movement or distance using the exact scroll conversions supplied.\n- One must frame productivity or output (e.g. tasks completed, artifacts produced) using clicks or active minutes.\n- One must highlight wellbeing or pacing (e.g. breaks, rhythm, focus) using active vs idle minutes or peak hours.\nUse the top domains or peak hours when they add colour, and never repeat the same comparison category twice in a day. Quote the precise numbers you are given—do not invent new units. Keep the tone optimistic yet realistic, avoiding exaggerated feats (no flights of stairs unless maths supports it). ${regenerate ? 'Deliver three brand-new angles that do not reuse prior metaphors or sentence stems.' : ''} Stay under 160 words. Format as three bullet points starting with a single emoji.`
+      content: `You are Scrollwise, a creative and humorous metrics coach. Generate three unique and engaging analogies based on the provided data:\n- Use movement or distance creatively, leveraging scroll conversions.\n- Highlight productivity or output, incorporating clicks or active minutes.\n- Focus on wellbeing or pacing, using active vs idle minutes or peak hours.\nLet the analogies be intuitive, non-repetitive, and cover a wide variety of topics. Avoid hardcoding categories; think creatively for analogies. Use precise numbers provided without inventing new units. Keep the tone optimistic, relatable, and fun. Stay under 160 words. Format as three bullet points starting with a single emoji.`
     },
     {
       role: 'user',
-      content: `Metrics: Active minutes: ${totalActive}, Idle minutes: ${totalIdle}, Scroll distance: ${totalScroll} pixels (${formatScrollDistanceWithBoth(totalScroll)}), Clicks: ${totalClicks}. 
-      
-Top domains: ${topDomains.map(d => `${d.domain} (${d.activeMinutes} min, ${d.scrollDistance} px / ${d.scrollDistanceCm.toFixed(1)} cm)`).join(', ')}. 
-
-Peak hours: ${peakHours.map(h => `${h.hour}:00 (${h.activeMinutes} min)`).join(', ')}.
-
-Scroll distance context: You scrolled the equivalent of ${getScrollDistanceDescription(totalScroll)} today.`
+      content: `Metrics: Active minutes: ${totalActive}, Idle minutes: ${totalIdle}, Scroll distance: ${totalScroll} pixels (${formatScrollDistanceWithBoth(totalScroll)}), Clicks: ${totalClicks}. \n\nTop domains: ${topDomains.map(d => `${d.domain} (${d.activeMinutes} min, ${d.scrollDistance} px / ${d.scrollDistanceCm.toFixed(1)} cm)`).join(', ')}. \n\nPeak hours: ${peakHours.map(h => `${h.hour}:00 (${h.activeMinutes} min)`).join(', ')}.\n\nScroll distance context: You scrolled the equivalent of ${getScrollDistanceDescription(totalScroll)} today.`
     }
   ];
 
