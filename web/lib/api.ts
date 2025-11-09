@@ -212,6 +212,11 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body)
     }),
+  deleteAccount: (token: string) =>
+    request<void>('/users/me', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    }),
   summary: (token: string) =>
     request<SummaryResponse>('/tracking/summary', {
       headers: { Authorization: `Bearer ${token}` }

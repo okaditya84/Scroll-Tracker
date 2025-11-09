@@ -91,6 +91,14 @@ export default function SettingsPage() {
     }
   });
 
+  const deleteAccountMutation = useMutation({
+    mutationFn: () => runWithRefresh(token => api.deleteAccount(token)),
+    onSuccess: async () => {
+      await logout();
+      router.push('/');
+    }
+  });
+
   const handleSave = () => {
     updateProfileMutation.mutate({
       displayName: formData.displayName,
@@ -190,6 +198,17 @@ export default function SettingsPage() {
                     className="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
                   >
                     {updateProfileMutation.isPending ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+                <div className="mt-6 border-t pt-4">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Danger zone</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Deleting your account will remove all tracked events and insights.</p>
+                  <button
+                    onClick={() => deleteAccountMutation.mutate()}
+                    disabled={deleteAccountMutation.isPending}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-400 transition"
+                  >
+                    {deleteAccountMutation.isPending ? 'Deleting…' : 'Delete account'}
                   </button>
                 </div>
               </div>

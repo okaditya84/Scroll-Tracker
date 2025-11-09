@@ -181,6 +181,13 @@ const App = () => {
         </div>
       </header>
 
+      <div className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+        <div>Why permissions? We need storage to save queued events, tabs to sync tracking across pages, and alarms for periodic uploads.</div>
+        <div>
+          <button className="underline" onClick={() => chrome.runtime.openOptionsPage?.()}>Manage extension settings</button>
+        </div>
+      </div>
+
       {loading && (
         <div className="space-y-3">
           <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />

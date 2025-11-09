@@ -183,8 +183,9 @@ export const generateInsight = async (userId: string, metricDate?: string, regen
   }
 
   if (!sanitized) {
-    logger.error({ completion }, 'Unable to generate insight content');
-    throw new Error('Insight generation is unavailable right now. Please try again in a moment.');
+    logger.error({ completion }, 'LLM failed to generate insight content, using local fallback');
+    // Fallback: generate three concise, informative bullets locally so users still get helpful notes
+    sanitized = generateLocalFallback(context);
   }
   const payload = {
     userId,
@@ -275,6 +276,30 @@ const sanitizeCompletion = (text: string) => {
   }
 
   return deduped.join('\n').replace(/\n{3,}/gu, '\n\n').trim();
+};
+
+const generateLocalFallback = (context: InsightContext) => {
+  const lines: string[] = [];
+  const t = context.totals;
+  // Movement/distance analogy
+  lines.push(`📏 You scrolled ${t.scrollDistanceCm} cm (${t.scrollDistance} px) — about ${t.scrollDistanceKm >= 0.1 ? `${t.scrollDistanceKm.toFixed(2)} km` : `${t.scrollDistanceCm} cm`} of content.`);
+  // Productivity/output analogy
+  if (context.derived.clicksPerActiveMinute != null) {
+    lines.push(`⚙️ You averaged ${context.derived.clicksPerActiveMinute} clicks per active minute — a steady output indicator.`);
+  } else {
+    lines.push(`⚙️ Clicks and activity show modest interaction today.`);
+  }
+  // Wellbeing/pacing analogy
+  const active = t.activeMinutes;
+  if (active < 30) {
+    lines.push(`🌿 Light day: ${active} active minutes — short, focused bursts. A brief walk would balance energy.`);
+  } else if (active <= 180) {
+    lines.push(`⏱️ Good rhythm: ${active} active minutes. Keep short breaks to sustain focus.`);
+  } else {
+    lines.push(`🏃 Long session: ${active} active minutes — consider a longer break to recharge.`);
+  }
+
+  return lines.join('\n');
 };
 
 const trimDailyInsights = async (userId: string, date: string, keep: number) => {

@@ -31,7 +31,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts.js"
+        "assets/index.ts-loader-DzZRdNQe.js"
       ],
       "matches": [
         "<all_urls>"
@@ -46,6 +46,8 @@
       ],
       "resources": [
         "public/*",
+        "assets/settings.js",
+        "assets/settings.js.map",
         "assets/index.ts.js",
         "assets/index.ts.js.map"
       ],

@@ -1,4 +1,5 @@
 import type { TrackingPayload } from '@/types/tracking';
+import { getSettings } from '@/storage/settings';
 
 const BROADCAST_SOURCE = 'scrollwise-web';
 
@@ -56,7 +57,7 @@ const scheduleIdleTimer = () => {
     }
     const now = Date.now();
     const elapsed = Math.max(now - lastActionAt, IDLE_THRESHOLD_MS);
-    pushEvent({
+      void pushEvent({
       type: 'idle',
       url: location.href,
       domain: urlDomain(location.href),
@@ -301,12 +302,21 @@ const scheduleFlush = () => {
   flushTimeout = window.setTimeout(flushBuffer, 1500);
 };
 
-const pushEvent = (event: TrackingPayload) => {
+const pushEvent = async (event: TrackingPayload) => {
   if (!trackingEnabled) return;
+  try {
+    const settings = await getSettings();
+    const domain = event.domain || urlDomain(event.url || location.href);
+    if (settings.blocklist.includes(domain)) return;
+  } catch (e) {
+    // ignore settings read errors — do not block event capture
+  }
+
   if (!isRuntimeAvailable()) {
     markRuntimeInvalidated();
     return;
   }
+
   BUFFER.push(event);
   if (BUFFER.length >= 8) {
     flushBuffer();
@@ -385,7 +395,7 @@ const recordScrollForTarget = (target: ScrollKey, source: ScrollSource = 'scroll
   }
   scrollOffsets.set(target, current);
   const now = Date.now();
-  pushEvent({
+    void pushEvent({
     type: 'scroll',
     url: location.href,
     domain: urlDomain(location.href),
@@ -450,7 +460,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 const handleClick = (event: MouseEvent) => {
   const now = Date.now();
-  pushEvent({
+    void pushEvent({
     type: 'click',
     url: location.href,
     domain: urlDomain(location.href),
@@ -481,7 +491,7 @@ const handleMouseMove = () => {
 const handleVisibilityChange = () => {
   const nowVisible = document.visibilityState === 'visible';
   const now = Date.now();
-  pushEvent({
+    void pushEvent({
     type: nowVisible ? 'focus' : 'blur',
     url: location.href,
     domain: urlDomain(location.href),

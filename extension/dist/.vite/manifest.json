@@ -13,6 +13,14 @@
     "file": "assets/client.js",
     "name": "client"
   },
+  "_settings.js": {
+    "file": "assets/settings.js",
+    "name": "settings"
+  },
+  "index.ts-loader.js": {
+    "file": "assets/index.ts-loader-DzZRdNQe.js",
+    "src": "index.ts-loader.js"
+  },
   "src/background/index.ts": {
     "file": "assets/index.ts2.js",
     "name": "index.ts",
@@ -26,7 +34,10 @@
     "file": "assets/index.ts.js",
     "name": "index.ts",
     "src": "src/content/index.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_settings.js"
+    ]
   },
   "src/options/index.html": {
     "file": "assets/index.html.js",
@@ -34,7 +45,8 @@
     "src": "src/options/index.html",
     "isEntry": true,
     "imports": [
-      "_client.js"
+      "_client.js",
+      "_settings.js"
     ]
   },
   "src/popup/index.html": {
@@ -47,7 +59,7 @@
       "_auth.js"
     ],
     "css": [
-      "assets/index-D3LlTwEB.css"
+      "assets/index-0DzLSmAb.css"
     ]
   }
 }
