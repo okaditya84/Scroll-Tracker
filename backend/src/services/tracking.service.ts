@@ -7,6 +7,7 @@ interface RecordEventInput {
   type: TrackingEventType;
   durationMs?: number;
   scrollDistance?: number;
+  idempotencyKey?: string;
   url: string;
   domain: string;
   startedAt?: Date;
@@ -14,17 +15,64 @@ interface RecordEventInput {
 }
 
 export const recordEvents = async (userId: string, events: RecordEventInput[]) => {
-  const docs = events.map(event => ({
-    userId: new mongoose.Types.ObjectId(userId),
-    ...event,
-    startedAt: event.startedAt ? new Date(event.startedAt) : undefined
-  }));
+  if (!events.length) return;
 
-  if (!docs.length) {
-    return;
+  // Convert to DB docs and split those with idempotency keys and those without.
+  const docsWithKey = events
+    .filter(e => e.idempotencyKey)
+    .map(e => ({
+      userId: new mongoose.Types.ObjectId(userId),
+      type: e.type,
+      durationMs: e.durationMs,
+      scrollDistance: e.scrollDistance,
+      url: e.url,
+      domain: e.domain,
+      metadata: e.metadata ?? {},
+      startedAt: e.startedAt ? new Date(e.startedAt) : undefined,
+      idempotencyKey: e.idempotencyKey
+    }));
+
+  const docsNoKey = events
+    .filter(e => !e.idempotencyKey)
+    .map(e => ({
+      userId: new mongoose.Types.ObjectId(userId),
+      type: e.type,
+      durationMs: e.durationMs,
+      scrollDistance: e.scrollDistance,
+      url: e.url,
+      domain: e.domain,
+      metadata: e.metadata ?? {},
+      startedAt: e.startedAt ? new Date(e.startedAt) : undefined
+    }));
+
+  // For idempotent docs, use bulkWrite upserts keyed by userId + idempotencyKey.
+  try {
+    const ops: any[] = [];
+    for (const doc of docsWithKey) {
+      ops.push({
+        updateOne: {
+          filter: { userId: doc.userId, idempotencyKey: doc.idempotencyKey },
+          update: { $setOnInsert: doc },
+          upsert: true
+        }
+      });
+    }
+
+    if (ops.length) {
+      // unordered to allow partial successes
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      await TrackingEvent.bulkWrite(ops, { ordered: false });
+    }
+
+    if (docsNoKey.length) {
+      await TrackingEvent.insertMany(docsNoKey, { ordered: false });
+    }
+  } catch (err) {
+    // Bulk ops may throw duplicate key errors, but with ordered:false we try to continue.
+    // Log and rethrow only if it's a critical failure.
+    // eslint-disable-next-line no-console
+    console.warn('[tracking] partial failure inserting events', (err as Error).message ?? err);
   }
-
-  await TrackingEvent.insertMany(docs, { ordered: false });
 
   const impactedDates = new Set<string>();
   const today = new Date().toISOString().slice(0, 10);

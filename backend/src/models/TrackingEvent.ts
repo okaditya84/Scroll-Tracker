@@ -7,6 +7,7 @@ export interface TrackingEventDocument extends Document {
   type: TrackingEventType;
   durationMs?: number;
   scrollDistance?: number;
+  idempotencyKey?: string;
   url: string;
   domain: string;
   metadata: Record<string, unknown>;
@@ -32,6 +33,9 @@ const trackingEventSchema = new Schema<TrackingEventDocument>(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
+// allow deduplication by a client-supplied idempotency key (per user)
+trackingEventSchema.add({ idempotencyKey: { type: String, index: false } });
+trackingEventSchema.index({ userId: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $exists: true } } });
 trackingEventSchema.index({ userId: 1, createdAt: -1 });
 trackingEventSchema.index({ userId: 1, domain: 1 });
 

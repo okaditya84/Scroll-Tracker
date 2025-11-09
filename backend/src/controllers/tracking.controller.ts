@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import * as trackingService from '../services/tracking.service.js';
 
 const eventSchema = z.object({
+  idempotencyKey: z.string().min(1).max(256).optional(),
   type: z.enum(['scroll', 'click', 'idle', 'focus', 'blur']),
   durationMs: z.number().int().nonnegative().optional(),
   scrollDistance: z.number().nonnegative().optional(),
