@@ -9,13 +9,16 @@
     "file": "assets/auth.js",
     "name": "auth"
   },
-  "_client.js": {
-    "file": "assets/client.js",
-    "name": "client"
-  },
   "_settings.js": {
     "file": "assets/settings.js",
     "name": "settings"
+  },
+  "_styles.js": {
+    "file": "assets/styles.js",
+    "name": "styles",
+    "css": [
+      "assets/styles-DSokzUbk.css"
+    ]
   },
   "index.ts-loader.js": {
     "file": "assets/index.ts-loader-DzZRdNQe.js",
@@ -45,7 +48,7 @@
     "src": "src/options/index.html",
     "isEntry": true,
     "imports": [
-      "_client.js",
+      "_styles.js",
       "_settings.js"
     ]
   },
@@ -55,11 +58,8 @@
     "src": "src/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_client.js",
+      "_styles.js",
       "_auth.js"
-    ],
-    "css": [
-      "assets/index-0DzLSmAb.css"
     ]
   }
 }
