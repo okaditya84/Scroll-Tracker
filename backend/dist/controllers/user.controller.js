@@ -60,3 +60,23 @@ export const updatePreferences = async (req, res) => {
     await user.save();
     res.json({ habits: user.habits });
 };
+export const deleteAccount = async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const userId = req.user.sub;
+    // Remove user and associated data
+    await Promise.all([
+        User.findByIdAndDelete(userId),
+        // models imported dynamically to avoid circular deps in some setups
+        (await import('../models/TrackingEvent.js')).default.deleteMany({ userId }),
+        (await import('../models/Insight.js')).default.deleteMany({ userId }),
+        (await import('../models/DailyMetric.js')).default.deleteMany({ userId }),
+        (await import('../models/Session.js')).default.deleteMany({ userId })
+    ]).catch(error => {
+        // log but don't expose internals
+        // eslint-disable-next-line no-console
+        console.error('deleteAccount error', error);
+    });
+    res.json({ ok: true });
+};

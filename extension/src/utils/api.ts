@@ -161,11 +161,19 @@ export const sendEventsToApi = async (auth: AuthState): Promise<UploadResult | u
         throw lastError;
       }
 
-      // success
-      await removeQueuedEvents(batch.map(item => item.id));
+      // success - parse server response for accepted idempotency keys
+      const data = await response.json().catch(() => ({}));
+      const accepted: string[] = Array.isArray(data?.acceptedKeys)
+        ? data.acceptedKeys
+        : batch.map(item => item.id);
+
+      if (accepted.length) {
+        await removeQueuedEvents(accepted);
+      }
+
       const remaining = await getQueuedEvents();
       return {
-        sentIds: batch.map(item => item.id),
+        sentIds: accepted,
         hasMore: remaining.length > 0
       };
     } catch (err) {

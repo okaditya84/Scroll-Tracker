@@ -3,15 +3,63 @@ import DailyMetric from '../models/DailyMetric.js';
 import TrackingEvent from '../models/TrackingEvent.js';
 import { pixelsToClimbometers, pixelsToKilometers } from '../utils/scrollConversion.js';
 export const recordEvents = async (userId, events) => {
-    const docs = events.map(event => ({
+    if (!events.length)
+        return { stored: 0, acceptedKeys: [] };
+    // Convert to DB docs and split those with idempotency keys and those without.
+    const docsWithKey = events
+        .filter(e => e.idempotencyKey)
+        .map(e => ({
         userId: new mongoose.Types.ObjectId(userId),
-        ...event,
-        startedAt: event.startedAt ? new Date(event.startedAt) : undefined
+        type: e.type,
+        durationMs: e.durationMs,
+        scrollDistance: e.scrollDistance,
+        url: e.url,
+        domain: e.domain,
+        metadata: e.metadata ?? {},
+        startedAt: e.startedAt ? new Date(e.startedAt) : undefined,
+        idempotencyKey: e.idempotencyKey
     }));
-    if (!docs.length) {
-        return;
+    const docsNoKey = events
+        .filter(e => !e.idempotencyKey)
+        .map(e => ({
+        userId: new mongoose.Types.ObjectId(userId),
+        type: e.type,
+        durationMs: e.durationMs,
+        scrollDistance: e.scrollDistance,
+        url: e.url,
+        domain: e.domain,
+        metadata: e.metadata ?? {},
+        startedAt: e.startedAt ? new Date(e.startedAt) : undefined
+    }));
+    // Determine which idempotency keys already exist so we can avoid duplicates
+    const providedKeys = docsWithKey.map(d => String(d.idempotencyKey));
+    const acceptedKeys = [];
+    try {
+        let existingKeys = [];
+        if (providedKeys.length) {
+            const existing = await TrackingEvent.find({
+                userId: new mongoose.Types.ObjectId(userId),
+                idempotencyKey: { $in: providedKeys }
+            })
+                .select('idempotencyKey')
+                .lean();
+            existingKeys = existing.map(e => String(e.idempotencyKey));
+        }
+        const toInsertWithKey = docsWithKey.filter(d => !existingKeys.includes(String(d.idempotencyKey)));
+        // Insert only the missing keyed docs
+        if (toInsertWithKey.length) {
+            await TrackingEvent.insertMany(toInsertWithKey, { ordered: false });
+        }
+        // Insert docs without keys
+        if (docsNoKey.length) {
+            await TrackingEvent.insertMany(docsNoKey, { ordered: false });
+        }
+        // The accepted keys are the union of existing + newly inserted
+        acceptedKeys.push(...existingKeys, ...toInsertWithKey.map(d => String(d.idempotencyKey)));
     }
-    await TrackingEvent.insertMany(docs, { ordered: false });
+    catch (err) {
+        console.warn('[tracking] partial failure inserting events', err.message ?? err);
+    }
     const impactedDates = new Set();
     const today = new Date().toISOString().slice(0, 10);
     impactedDates.add(today);
@@ -20,6 +68,8 @@ export const recordEvents = async (userId, events) => {
         impactedDates.add(sourceDate.toISOString().slice(0, 10));
     });
     await Promise.all([...impactedDates].map(date => aggregateDailyMetrics(userId, date)));
+    const stored = (docsNoKey.length ?? 0) + (acceptedKeys.length ?? 0);
+    return { stored, acceptedKeys };
 };
 export const getSummary = async (userId) => {
     const today = new Date().toISOString().slice(0, 10);

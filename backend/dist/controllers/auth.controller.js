@@ -74,6 +74,11 @@ export const refresh = async (req, res) => {
     }
     catch (error) {
         logger.warn({ error }, 'Refresh denied');
+        // clear any refresh cookie and require re-authentication
+        try {
+            authService.clearRefreshCookie(res);
+        }
+        catch { }
         res.status(401).json({ error: 'Re-authentication required' });
     }
 };

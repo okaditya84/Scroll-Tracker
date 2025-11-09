@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import * as trackingService from '../services/tracking.service.js';
 const eventSchema = z.object({
+    idempotencyKey: z.string().min(1).max(256).optional(),
     type: z.enum(['scroll', 'click', 'idle', 'focus', 'blur']),
     durationMs: z.number().int().nonnegative().optional(),
     scrollDistance: z.number().nonnegative().optional(),
@@ -18,8 +19,14 @@ export const recordEvents = async (req, res) => {
     if (!parse.success) {
         return res.status(400).json({ error: parse.error.flatten() });
     }
-    await trackingService.recordEvents(req.user.sub, parse.data.events);
-    res.status(201).json({ stored: parse.data.events.length });
+    const result = await trackingService.recordEvents(req.user.sub, parse.data.events);
+    // result may include acceptedKeys and stored count
+    if (result && typeof result === 'object') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { stored = parse.data.events.length, acceptedKeys = [] } = result;
+        return res.status(201).json({ stored, acceptedKeys });
+    }
+    return res.status(201).json({ stored: parse.data.events.length });
 };
 export const getSummary = async (req, res) => {
     if (!req.user) {

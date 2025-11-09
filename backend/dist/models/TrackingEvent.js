@@ -13,6 +13,9 @@ const trackingEventSchema = new Schema({
     metadata: { type: Schema.Types.Mixed, default: {} },
     startedAt: { type: Date }
 }, { timestamps: { createdAt: true, updatedAt: false } });
+// allow deduplication by a client-supplied idempotency key (per user)
+trackingEventSchema.add({ idempotencyKey: { type: String, index: false } });
+trackingEventSchema.index({ userId: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $exists: true } } });
 trackingEventSchema.index({ userId: 1, createdAt: -1 });
 trackingEventSchema.index({ userId: 1, domain: 1 });
 export default model('TrackingEvent', trackingEventSchema);

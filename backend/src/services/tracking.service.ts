@@ -15,7 +15,7 @@ interface RecordEventInput {
 }
 
 export const recordEvents = async (userId: string, events: RecordEventInput[]) => {
-  if (!events.length) return;
+  if (!events.length) return { stored: 0, acceptedKeys: [] };
 
   // Convert to DB docs and split those with idempotency keys and those without.
   const docsWithKey = events
@@ -45,32 +45,36 @@ export const recordEvents = async (userId: string, events: RecordEventInput[]) =
       startedAt: e.startedAt ? new Date(e.startedAt) : undefined
     }));
 
-  // For idempotent docs, use bulkWrite upserts keyed by userId + idempotencyKey.
+  // Determine which idempotency keys already exist so we can avoid duplicates
+  const providedKeys = docsWithKey.map(d => String(d.idempotencyKey));
+  const acceptedKeys: string[] = [];
   try {
-    const ops: any[] = [];
-    for (const doc of docsWithKey) {
-      ops.push({
-        updateOne: {
-          filter: { userId: doc.userId, idempotencyKey: doc.idempotencyKey },
-          update: { $setOnInsert: doc },
-          upsert: true
-        }
-      });
+    let existingKeys: string[] = [];
+    if (providedKeys.length) {
+      const existing = await TrackingEvent.find({
+        userId: new mongoose.Types.ObjectId(userId),
+        idempotencyKey: { $in: providedKeys }
+      })
+        .select('idempotencyKey')
+        .lean();
+      existingKeys = existing.map(e => String((e as any).idempotencyKey));
     }
 
-    if (ops.length) {
-      // unordered to allow partial successes
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await TrackingEvent.bulkWrite(ops, { ordered: false });
+    const toInsertWithKey = docsWithKey.filter(d => !existingKeys.includes(String(d.idempotencyKey)));
+
+    // Insert only the missing keyed docs
+    if (toInsertWithKey.length) {
+      await TrackingEvent.insertMany(toInsertWithKey, { ordered: false });
     }
 
+    // Insert docs without keys
     if (docsNoKey.length) {
       await TrackingEvent.insertMany(docsNoKey, { ordered: false });
     }
+
+    // The accepted keys are the union of existing + newly inserted
+    acceptedKeys.push(...existingKeys, ...toInsertWithKey.map(d => String(d.idempotencyKey)));
   } catch (err) {
-    // Bulk ops may throw duplicate key errors, but with ordered:false we try to continue.
-    // Log and rethrow only if it's a critical failure.
-    // eslint-disable-next-line no-console
     console.warn('[tracking] partial failure inserting events', (err as Error).message ?? err);
   }
 
@@ -84,6 +88,9 @@ export const recordEvents = async (userId: string, events: RecordEventInput[]) =
   });
 
   await Promise.all([...impactedDates].map(date => aggregateDailyMetrics(userId, date)));
+
+  const stored = (docsNoKey.length ?? 0) + (acceptedKeys.length ?? 0);
+  return { stored, acceptedKeys };
 };
 
 export const getSummary = async (userId: string) => {

@@ -26,8 +26,15 @@ export const recordEvents = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: parse.error.flatten() });
   }
 
-  await trackingService.recordEvents(req.user.sub, parse.data.events);
-  res.status(201).json({ stored: parse.data.events.length });
+  const result = await trackingService.recordEvents(req.user.sub, parse.data.events);
+  // result may include acceptedKeys and stored count
+  if (result && typeof result === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { stored = parse.data.events.length, acceptedKeys = [] } = result as any;
+    return res.status(201).json({ stored, acceptedKeys });
+  }
+
+  return res.status(201).json({ stored: parse.data.events.length });
 };
 
 export const getSummary = async (req: AuthRequest, res: Response) => {

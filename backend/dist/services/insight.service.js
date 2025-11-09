@@ -3,6 +3,7 @@ import DailyMetric from '../models/DailyMetric.js';
 import Insight from '../models/Insight.js';
 import { callGroq } from '../utils/groqClient.js';
 import { pixelsToClimbometers, pixelsToKilometers, formatScrollDistanceWithBoth, getScrollDistanceDescription } from '../utils/scrollConversion.js';
+import logger from '../utils/logger.js';
 const toMinutes = (valueMs) => Math.round((valueMs ?? 0) / 60000);
 export const getLatest = async (userId, limit = 10) => {
     const candidates = await Insight.find({ userId })
@@ -99,21 +100,29 @@ export const generateInsight = async (userId, metricDate, regenerate = false) =>
     const prompt = [
         {
             role: 'system',
-            content: `You are Scrollwise, a fun and insightful scroll tracker AI. Generate exactly three fun, unique analogies based on the user's scroll metrics. Each analogy should relate scroll distance (provided in both pixels and centimeters/kilometers), clicks, or active time to real-world equivalents like distance traveled, energy burned, objects created, or fun comparisons. Make them engaging and positive. ${regenerate ? 'Provide completely different analogies from previous ones.' : ''} Keep total response under 150 words. Format as three bullet points. Use the real-world distance conversions (centimeters/kilometers) when describing scroll distance for better relatability.`
+            content: `You are Scrollwise, a creative and humorous metrics coach. Generate three unique and engaging analogies based on the provided data:\n- Use movement or distance creatively, leveraging scroll conversions.\n- Highlight productivity or output, incorporating clicks or active minutes.\n- Focus on wellbeing or pacing, using active vs idle minutes or peak hours.\nLet the analogies be intuitive, non-repetitive, and cover a wide variety of topics. Avoid hardcoding categories; think creatively for analogies. Use precise numbers provided without inventing new units. Keep the tone optimistic, relatable, and fun. Stay under 160 words. Format as three bullet points starting with a single emoji.`
         },
         {
             role: 'user',
-            content: `Metrics: Active minutes: ${totalActive}, Idle minutes: ${totalIdle}, Scroll distance: ${totalScroll} pixels (${formatScrollDistanceWithBoth(totalScroll)}), Clicks: ${totalClicks}. 
-      
-Top domains: ${topDomains.map(d => `${d.domain} (${d.activeMinutes} min, ${d.scrollDistance} px / ${d.scrollDistanceCm.toFixed(1)} cm)`).join(', ')}. 
-
-Peak hours: ${peakHours.map(h => `${h.hour}:00 (${h.activeMinutes} min)`).join(', ')}.
-
-Scroll distance context: You scrolled the equivalent of ${getScrollDistanceDescription(totalScroll)} today.`
+            content: `Metrics: Active minutes: ${totalActive}, Idle minutes: ${totalIdle}, Scroll distance: ${totalScroll} pixels (${formatScrollDistanceWithBoth(totalScroll)}), Clicks: ${totalClicks}. \n\nTop domains: ${topDomains.map(d => `${d.domain} (${d.activeMinutes} min, ${d.scrollDistance} px / ${d.scrollDistanceCm.toFixed(1)} cm)`).join(', ')}. \n\nPeak hours: ${peakHours.map(h => `${h.hour}:00 (${h.activeMinutes} min)`).join(', ')}.\n\nScroll distance context: You scrolled the equivalent of ${getScrollDistanceDescription(totalScroll)} today.`
         }
     ];
-    const completion = await callGroq(prompt);
-    const sanitized = sanitizeCompletion(completion) || completion.trim();
+    const MAX_ATTEMPTS = 3;
+    let sanitized = '';
+    let completion = '';
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+        completion = await callGroq(prompt);
+        sanitized = (sanitizeCompletion(completion) || completion).trim();
+        if (sanitized) {
+            break;
+        }
+        logger.warn({ attempt }, 'LLM returned empty insight content, retrying');
+    }
+    if (!sanitized) {
+        logger.error({ completion }, 'LLM failed to generate insight content, using local fallback');
+        // Fallback: generate three concise, informative bullets locally so users still get helpful notes
+        sanitized = generateLocalFallback(context);
+    }
     const payload = {
         userId,
         title: deriveTitle(sanitized),
@@ -193,6 +202,31 @@ const sanitizeCompletion = (text) => {
         deduped.push(rawLine.replace(/^\s+/u, ''));
     }
     return deduped.join('\n').replace(/\n{3,}/gu, '\n\n').trim();
+};
+const generateLocalFallback = (context) => {
+    const lines = [];
+    const t = context.totals;
+    // Movement/distance analogy
+    lines.push(`📏 You scrolled ${t.scrollDistanceCm} cm (${t.scrollDistance} px) — about ${t.scrollDistanceKm >= 0.1 ? `${t.scrollDistanceKm.toFixed(2)} km` : `${t.scrollDistanceCm} cm`} of content.`);
+    // Productivity/output analogy
+    if (context.derived.clicksPerActiveMinute != null) {
+        lines.push(`⚙️ You averaged ${context.derived.clicksPerActiveMinute} clicks per active minute — a steady output indicator.`);
+    }
+    else {
+        lines.push(`⚙️ Clicks and activity show modest interaction today.`);
+    }
+    // Wellbeing/pacing analogy
+    const active = t.activeMinutes;
+    if (active < 30) {
+        lines.push(`🌿 Light day: ${active} active minutes — short, focused bursts. A brief walk would balance energy.`);
+    }
+    else if (active <= 180) {
+        lines.push(`⏱️ Good rhythm: ${active} active minutes. Keep short breaks to sustain focus.`);
+    }
+    else {
+        lines.push(`🏃 Long session: ${active} active minutes — consider a longer break to recharge.`);
+    }
+    return lines.join('\n');
 };
 const trimDailyInsights = async (userId, date, keep) => {
     const extras = await Insight.find({ userId, metricDate: date })
