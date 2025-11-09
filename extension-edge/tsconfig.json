@@ -1,0 +1,12 @@
+{
+  "extends": "../extension/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../extension/src",
+    "paths": {
+      "@/*": ["../extension/src/*"]
+    },
+    "outDir": "./dist/.tscache"
+  },
+  "include": ["../extension/src"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,61 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Brain Shield Background -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d1b4e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a0f2e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Shield Shape -->
+  <path d="M256 20 L420 120 L420 280 Q420 380 256 460 Q92 380 92 280 L92 120 Z" fill="url(#bgGradient)" stroke="#d4af37" stroke-width="2"/>
+  
+  <!-- Brain Circuit Pattern -->
+  <g stroke="#d4af37" stroke-width="3" fill="none" stroke-linecap="round">
+    <!-- Left hemisphere circuits -->
+    <path d="M160 150 Q140 140 130 160"/>
+    <path d="M150 180 Q130 190 140 210"/>
+    <path d="M180 140 Q160 130 170 110"/>
+    <circle cx="130" cy="160" r="4" fill="#d4af37"/>
+    <circle cx="140" cy="210" r="4" fill="#d4af37"/>
+    <circle cx="170" cy="110" r="4" fill="#d4af37"/>
+    
+    <!-- Right hemisphere circuits -->
+    <path d="M352 150 Q372 140 382 160"/>
+    <path d="M362 180 Q382 190 372 210"/>
+    <path d="M332 140 Q352 130 342 110"/>
+    <circle cx="382" cy="160" r="4" fill="#d4af37"/>
+    <circle cx="372" cy="210" r="4" fill="#d4af37"/>
+    <circle cx="342" cy="110" r="4" fill="#d4af37"/>
+    
+    <!-- Center connection -->
+    <path d="M200 180 L312 180"/>
+    <circle cx="256" cy="180" r="5" fill="#d4af37"/>
+  </g>
+  
+  <!-- Brain lobes outline -->
+  <path d="M180 120 Q200 100 220 120 Q240 100 256 110 Q272 100 292 120 Q312 100 332 120 L330 200 Q320 220 300 220 L212 220 Q192 220 182 200 Z" 
+        fill="none" stroke="#d4af37" stroke-width="2"/>
+  
+  <!-- Hand/Click icon -->
+  <g fill="#10b981">
+    <!-- Pointer finger -->
+    <rect x="240" y="240" width="12" height="50" rx="6"/>
+    <!-- Other fingers -->
+    <rect x="220" y="270" width="12" height="40" rx="6"/>
+    <rect x="260" y="270" width="12" height="40" rx="6"/>
+    <!-- Palm -->
+    <circle cx="246" cy="310" r="15" fill="#10b981"/>
+  </g>
+  
+  <!-- Accent dots (representing data/clicks) -->
+  <circle cx="150" cy="350" r="4" fill="#10b981" opacity="0.8"/>
+  <circle cx="200" cy="380" r="3" fill="#06b6d4" opacity="0.7"/>
+  <circle cx="320" cy="350" r="4" fill="#10b981" opacity="0.8"/>
+  <circle cx="360" cy="370" r="3" fill="#06b6d4" opacity="0.7"/>
+  <circle cx="280" cy="400" r="3" fill="#10b981" opacity="0.6"/>
+</svg>
