@@ -197,13 +197,17 @@ const App = () => {
 
       {!loading && !auth?.accessToken && (
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 text-sm text-slate-600 dark:text-slate-300">
-          <p className="mb-4">Sign in to start tracking your scroll patterns and daily insights.</p>
+          <p className="mb-2">Tracking is currently paused for this browser.</p>
+          <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">If you previously signed in, your session may have expired — sign in again to reactivate tracking and resume uploads.</p>
           <button
             className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition"
             onClick={handleLogin}
           >
-            Sign in
+            Sign in / Re-authenticate
           </button>
+          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <button className="underline" onClick={() => chrome.runtime.openOptionsPage?.()}>Manage extension settings</button>
+          </div>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import * as Sentry from '@sentry/node';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -31,6 +32,17 @@ const originMatches = (incoming, allowed) => {
 };
 const createServer = () => {
     const app = express();
+    // Initialize Sentry if DSN is provided
+    try {
+        if (env.SENTRY_DSN) {
+            Sentry.init({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
+            app.use(Sentry.Handlers.requestHandler());
+        }
+    }
+    catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('Sentry initialization failed', err.message ?? err);
+    }
     app.set('trust proxy', 1);
     app.use(helmet());
     app.use(morgan(env.isProduction ? 'combined' : 'dev'));
@@ -66,6 +78,14 @@ const createServer = () => {
     app.use('/api', routes);
     app.get('/health', (_req, res) => res.json({ status: 'ok' }));
     app.use(errorHandler);
+    try {
+        if (env.SENTRY_DSN) {
+            app.use(Sentry.Handlers.errorHandler());
+        }
+    }
+    catch (err) {
+        // swallow
+    }
     return app;
 };
 export default createServer;

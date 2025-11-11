@@ -22,6 +22,7 @@ const raw = cleanEnv(process.env, {
     GOOGLE_CLIENT_ID: str(),
     GOOGLE_CLIENT_SECRET: str(),
     GROQ_API_KEY: str(),
+    SENTRY_DSN: str({ default: '' }),
     FRONTEND_URL: str(),
     EXTENSION_URL: str(),
     EXTENSION_URLS: str({ default: '' }),

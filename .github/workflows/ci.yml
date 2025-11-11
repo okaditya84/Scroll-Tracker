@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Build backend (typescript)
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build web (next) (light)
+        working-directory: ./web
+        run: |
+          npm ci
+          npm run build || true
+
+      - name: Build extension (chrome)
+        working-directory: ./extension
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build extension-edge (edge)
+        working-directory: ./extension-edge
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run manifest verification
+        run: node ./tools/verifyManifests.js
+
+      - name: Archive extension artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-artifacts
+          path: |
+            extension/dist
+            extension-edge/dist

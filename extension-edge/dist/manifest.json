@@ -31,7 +31,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-CG_WTcd2.js"
+        "assets/index.ts-loader-CsT284gb.js"
       ],
       "matches": [
         "<all_urls>"
@@ -46,7 +46,8 @@
       ],
       "resources": [
         "public/*",
-        "assets/index.ts-CG_WTcd2.js"
+        "assets/settings-Dy3YOXZy.js",
+        "assets/index.ts-MblXNxbm.js"
       ],
       "use_dynamic_url": false
     }
