@@ -25,6 +25,17 @@ function checkDist(distPath) {
     return false;
   }
 
+  // Ensure there are no SVG icon files in the public output - stores may reject svg images
+  const publicDir = path.join(distPath, 'public');
+  if (fs.existsSync(publicDir)) {
+    const publicFiles = fs.readdirSync(publicDir);
+    const svgFiles = publicFiles.filter(f => f.toLowerCase().endsWith('.svg'));
+    if (svgFiles.length > 0) {
+      console.error('SVG files found in', publicDir, '- some store checks reject SVG icons. Remove or convert them to PNG before packaging. Files:', svgFiles.join(', '));
+      return false;
+    }
+  }
+
   console.log('OK:', distPath, 'contains a single manifest.json and no .vite manifest.');
   return true;
 }
