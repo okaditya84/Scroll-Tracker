@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x]
+        # undici@7+ and some other deps require Node >=20.18.1; pin the runner to a compatible Node
+        # to avoid runtime ReferenceError: File is not defined and engine mismatch warnings.
+        node-version: ['20.18.1']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
