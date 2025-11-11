@@ -23,6 +23,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Check Node/NPM versions
+        run: |
+          node -v
+          npm -v
+
       - name: Build backend (typescript)
         working-directory: ./backend
         run: |
