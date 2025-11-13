@@ -9,14 +9,14 @@ export const metadata = {
   title: 'Scrollwise — Playful browsing coach',
   description: 'Transform your scrolling into mindful momentum.',
   icons: {
-    icon: '/logo.svg'
+    icon: '/logo.png'
   }
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50`}> 
+  <body className={`${inter.className} bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50`}>
         <Providers>{children}</Providers>
       </body>
     </html>

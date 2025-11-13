@@ -52,7 +52,7 @@ export default function HomePage() {
           </div>
           <div className="flex flex-1 justify-center">
             <div className="relative h-[400px] w-[400px]">
-              <Image src="/logo.svg" alt="Scrollwise Logo" fill className="object-contain" />
+              <Image src="/logo.png" alt="Scrollwise Logo" fill className="object-contain" />
             </div>
           </div>
         </header>

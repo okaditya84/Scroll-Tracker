@@ -132,7 +132,7 @@ const OptionsApp = () => {
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-6 py-12">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <img src="/logo.svg" alt="Scrollwise" className="h-12 w-12 rounded-xl bg-slate-800/70 p-2 shadow" />
+            <img src="/logo.png" alt="Scrollwise" className="h-12 w-12 rounded-xl bg-slate-800/70 p-2 shadow" />
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-white">Scrollwise Settings</h1>
               <p className="text-sm text-slate-400">Tune what the extension collects and how long it keeps your local data.</p>
