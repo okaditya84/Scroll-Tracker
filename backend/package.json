@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-  "build": "tsc -p tsconfig.build.json",
-  "start": "npm run build && node dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "start:build": "npm run build && node dist/index.js",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\""
   },
