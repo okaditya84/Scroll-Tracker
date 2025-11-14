@@ -29,6 +29,7 @@ const buildAccessToken = (user: UserDocument, sessionId: string) => {
     sub: getUserId(user),
     email: user.email,
     displayName: user.displayName,
+    role: (user as any).role ?? 'user',
     sessionId
   };
 

@@ -6,6 +6,7 @@ const userSchema = new Schema({
     displayName: { type: String, required: true },
     avatarUrl: { type: String },
     timezone: { type: String, default: 'UTC' },
+    role: { type: String, enum: ['user', 'admin', 'superadmin'], default: 'user' },
     habits: {
         dailyGoalMinutes: { type: Number, default: 120 },
         notificationsEnabled: { type: Boolean, default: true }

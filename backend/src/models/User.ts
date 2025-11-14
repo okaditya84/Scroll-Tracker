@@ -12,6 +12,7 @@ export interface UserDocument extends Document {
     dailyGoalMinutes?: number;
     notificationsEnabled?: boolean;
   };
+  role?: 'user' | 'admin' | 'superadmin';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,7 @@ const userSchema = new Schema<UserDocument>(
     displayName: { type: String, required: true },
     avatarUrl: { type: String },
     timezone: { type: String, default: 'UTC' },
+    role: { type: String, enum: ['user', 'admin', 'superadmin'], default: 'user' },
     habits: {
       dailyGoalMinutes: { type: Number, default: 120 },
       notificationsEnabled: { type: Boolean, default: true }

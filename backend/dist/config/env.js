@@ -26,13 +26,29 @@ const raw = cleanEnv(process.env, {
     FRONTEND_URL: str(),
     EXTENSION_URL: str(),
     EXTENSION_URLS: str({ default: '' }),
+    SUPERADMIN_EMAIL: str({ default: '' }),
+    SUPERADMIN_PASSWORD: str({ default: '' }),
     CORS_ADDITIONAL_ORIGINS: str({ default: '' })
 });
 const extensionOrigins = [raw.EXTENSION_URL, ...parseCsv(raw.EXTENSION_URLS)]
     .map(entry => entry.trim())
     .filter(Boolean);
-const allowedOrigins = Array.from(new Set([normalizeOrigin(raw.FRONTEND_URL), ...extensionOrigins.map(normalizeOrigin), ...parseCsv(raw.CORS_ADDITIONAL_ORIGINS).map(normalizeOrigin)]
-    .filter((origin) => Boolean(origin))));
+const baseAllowedOrigins = [
+    normalizeOrigin(raw.FRONTEND_URL),
+    ...extensionOrigins.map(normalizeOrigin),
+    ...parseCsv(raw.CORS_ADDITIONAL_ORIGINS).map(normalizeOrigin)
+].filter((origin) => Boolean(origin));
+const extensionSchemes = new Set();
+for (const origin of extensionOrigins) {
+    const match = origin.match(/^([a-z-]+-extension):\/\//i);
+    if (match) {
+        extensionSchemes.add(match[1].toLowerCase());
+    }
+}
+const wildcardExtensionOrigins = extensionSchemes.size
+    ? Array.from(extensionSchemes).map(scheme => `${scheme}://*`)
+    : [];
+const allowedOrigins = Array.from(new Set([...baseAllowedOrigins, ...wildcardExtensionOrigins]));
 export default {
     ...raw,
     isProduction: raw.NODE_ENV === 'production',

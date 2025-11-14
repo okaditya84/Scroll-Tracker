@@ -3,6 +3,7 @@ export interface JwtPayload {
   email: string;
   displayName: string;
   sessionId: string;
+  role?: 'user' | 'admin' | 'superadmin';
   iat: number;
   exp: number;
 }

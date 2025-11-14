@@ -235,4 +235,50 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body ?? {})
     })
+  ,
+  // Admin endpoints
+  adminSummary: (token: string) =>
+    request<any>('/admin/summary', {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminListUsers: (token: string, opts?: { q?: string; page?: number; limit?: number }) =>
+    request<any>(`/admin/users?q=${encodeURIComponent(opts?.q ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminPromoteUser: (token: string, id: string) =>
+    request<any>(`/admin/users/${encodeURIComponent(id)}/promote`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminDemoteUser: (token: string, id: string) =>
+    request<any>(`/admin/users/${encodeURIComponent(id)}/demote`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminDeleteUser: (token: string, id: string) =>
+    request<any>(`/admin/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminExportEvents: (token: string, opts?: { userId?: string; domain?: string }) => {
+    const q = `/admin/events/export?userId=${encodeURIComponent(opts?.userId ?? '')}&domain=${encodeURIComponent(opts?.domain ?? '')}`;
+    // return raw text via fetch because request() expects JSON
+    return fetch(getApiBase() + q, { headers: { Authorization: `Bearer ${token}` }, credentials: 'include' }).then(r => {
+      if (!r.ok) throw new ApiError(r.status, 'Export failed');
+      return r.blob();
+    });
+  },
+  adminListEvents: (token: string, opts?: { userId?: string; domain?: string; page?: number; limit?: number }) =>
+    request<any>(
+      `/admin/events?userId=${encodeURIComponent(opts?.userId ?? '')}&domain=${encodeURIComponent(opts?.domain ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ),
+  adminListMetrics: (token: string, opts?: { userId?: string; page?: number; limit?: number }) =>
+    request<any>(`/admin/metrics?userId=${encodeURIComponent(opts?.userId ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminListInsights: (token: string, opts?: { userId?: string; page?: number; limit?: number }) =>
+    request<any>(`/admin/insights?userId=${encodeURIComponent(opts?.userId ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
 };

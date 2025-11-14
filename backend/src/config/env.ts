@@ -29,6 +29,8 @@ const raw = cleanEnv(process.env, {
   FRONTEND_URL: str(),
   EXTENSION_URL: str(),
   EXTENSION_URLS: str({ default: '' }),
+  SUPERADMIN_EMAIL: str({ default: '' }),
+  SUPERADMIN_PASSWORD: str({ default: '' }),
   CORS_ADDITIONAL_ORIGINS: str({ default: '' })
 });
 
@@ -62,3 +64,4 @@ export default {
   allowedOrigins,
   extensionOrigins
 };
+

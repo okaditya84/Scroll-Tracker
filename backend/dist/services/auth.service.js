@@ -17,6 +17,7 @@ const buildAccessToken = (user, sessionId) => {
         sub: getUserId(user),
         email: user.email,
         displayName: user.displayName,
+        role: user.role ?? 'user',
         sessionId
     };
     const secret = env.JWT_SECRET;
