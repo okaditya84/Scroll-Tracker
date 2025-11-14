@@ -2,6 +2,46 @@ import type { TrackingPayload } from '@/types/tracking';
 import { getSettings } from '@/storage/settings';
 
 const BROADCAST_SOURCE = 'scrollwise-web';
+const EXTENSION_BROADCAST_SOURCE = 'scrollwise-extension';
+
+const broadcastLogoutToPage = () => {
+  try {
+    window.localStorage.removeItem('scrollwise-auth');
+  } catch (error) {
+    console.warn('scrollwise: unable to clear web auth storage', error);
+  }
+  window.postMessage({ source: EXTENSION_BROADCAST_SOURCE, type: 'AUTH_LOGOUT' }, '*');
+};
+
+const readForcedLogoutFlag = () =>
+  new Promise<boolean>(resolve => {
+    if (!chrome?.storage?.local?.get) {
+      resolve(false);
+      return;
+    }
+    try {
+      chrome.storage.local.get('scrollwiseForceLogoutAt', store => {
+        resolve(Boolean(store?.scrollwiseForceLogoutAt));
+      });
+    } catch (error) {
+      console.warn('scrollwise: unable to read forced logout flag', error);
+      resolve(false);
+    }
+  });
+
+const clearForcedLogoutFlag = () =>
+  new Promise<void>(resolve => {
+    if (!chrome?.storage?.local?.remove) {
+      resolve();
+      return;
+    }
+    try {
+      chrome.storage.local.remove('scrollwiseForceLogoutAt', () => resolve());
+    } catch (error) {
+      console.warn('scrollwise: unable to clear forced logout flag', error);
+      resolve();
+    }
+  });
 
 let trackingEnabled = false;
 let idleTimer: number | undefined;
@@ -191,12 +231,20 @@ const authHash = (auth?: PageAuthSnapshot | null) => {
 
 let lastAuthSignature: string | null = null;
 
-const syncFromPageStorage = (activateTracking = false) => {
+const syncFromPageStorage = async (activateTracking = false) => {
   const snapshot = readPageAuth();
   const nextSignature = authHash(snapshot);
   const runtimeReady = isRuntimeAvailable();
 
   if (!runtimeReady) {
+    return;
+  }
+
+  const forcedLogout = await readForcedLogoutFlag();
+  if (forcedLogout && snapshot) {
+    broadcastLogoutToPage();
+    lastAuthSignature = null;
+    await clearForcedLogoutFlag();
     return;
   }
 
@@ -221,14 +269,14 @@ const syncFromPageStorage = (activateTracking = false) => {
   lastAuthSignature = nextSignature;
 };
 
-syncFromPageStorage(true);
+void syncFromPageStorage(true);
 
 window.addEventListener('storage', () => {
-  syncFromPageStorage();
+  void syncFromPageStorage();
 });
 
 storageSyncInterval = window.setInterval(() => {
-  syncFromPageStorage();
+  void syncFromPageStorage();
 }, 2000);
 
 window.addEventListener('message', event => {
@@ -552,6 +600,18 @@ if (isRuntimeAvailable()) {
     if (message.type === 'SYNC_TRACKING') {
       setTrackingEnabled(Boolean(message.enabled));
       sendResponse({ enabled: trackingEnabled });
+      return;
+    }
+
+    if (message.type === 'AUTH_LOGOUT_BROADCAST') {
+      setTrackingEnabled(false);
+      BUFFER.length = 0;
+      clearIdleTimer();
+      cancelScheduledFlush();
+      broadcastLogoutToPage();
+      lastAuthSignature = null;
+      sendResponse({ ok: true });
+      return;
     }
   });
 }

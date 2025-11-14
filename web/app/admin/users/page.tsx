@@ -5,14 +5,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 
 export default function AdminUsersPage() {
-  const { accessToken, loading } = useAuth();
+  const { accessToken, loading, user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   useEffect(() => {
     if (loading) return;
-    if (!accessToken) {
-      setError('Sign in as an admin to view this page.');
+    if (!accessToken || !isAdmin) {
+      setError('Admin privileges required.');
       return;
     }
 
@@ -28,9 +29,10 @@ export default function AdminUsersPage() {
     return () => {
       mounted = false;
     };
-  }, [accessToken, loading]);
+  }, [accessToken, isAdmin, loading]);
 
   if (loading) return <div>Loading…</div>;
+  if (!isAdmin) return <div className="p-6 text-red-600">{error ?? 'Admin privileges required.'}</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (

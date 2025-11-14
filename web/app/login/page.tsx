@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
@@ -12,19 +12,22 @@ const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 const LoginPageContent = () => {
   const router = useRouter();
   const params = useSearchParams();
-  const { login, accessToken } = useAuth();
+  const { login, accessToken, user } = useAuth();
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const isExtensionFlow = params.get('ext') === 'true';
 
+  const navigateAfterAuth = useCallback((role?: string) => {
+    const isAdmin = role === 'admin' || role === 'superadmin';
+    const baseRoute = isAdmin ? '/admin' : '/dashboard';
+    const target = !isAdmin && isExtensionFlow ? '/dashboard?source=extension' : baseRoute;
+    router.replace(target);
+  }, [isExtensionFlow, router]);
+
   useEffect(() => {
-    if (!accessToken) return;
-    if (isExtensionFlow) {
-      router.replace('/dashboard?source=extension');
-    } else {
-      router.replace('/dashboard');
-    }
-  }, [accessToken, isExtensionFlow, router]);
+    if (!accessToken || !user) return;
+    navigateAfterAuth(user.role);
+  }, [accessToken, user, navigateAfterAuth]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,11 +39,7 @@ const LoginPageContent = () => {
     try {
       const response = await api.login({ email, password });
       login({ accessToken: response.tokens.accessToken, refreshToken: response.tokens.refreshToken, user: response.user });
-      if (isExtensionFlow) {
-        router.replace('/dashboard?source=extension');
-      } else {
-        router.push('/dashboard');
-      }
+      navigateAfterAuth(response.user.role);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -53,11 +52,7 @@ const LoginPageContent = () => {
     try {
       const response = await api.google({ idToken: credentialResponse.credential });
       login({ accessToken: response.tokens.accessToken, refreshToken: response.tokens.refreshToken, user: response.user });
-      if (isExtensionFlow) {
-        router.replace('/dashboard?source=extension');
-      } else {
-        router.push('/dashboard');
-      }
+      navigateAfterAuth(response.user.role);
     } catch (err) {
       setError((err as Error).message);
     }

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Scrollwise Tracker",
   "description": "Track your scrolling energy and receive playful wellness insights.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "permissions": [
     "storage",
     "tabs",

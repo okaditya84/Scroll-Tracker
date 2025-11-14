@@ -6,6 +6,23 @@ const TRACKING_ALARM = 'scrollwise-upload';
 let uploadInFlight: Promise<void> | null = null;
 let uploadQueued = false;
 
+const broadcastToTabs = async (message: Record<string, unknown>) => {
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(
+    tabs.map(tab => (tab.id ? chrome.tabs.sendMessage(tab.id, message).catch(() => undefined) : undefined))
+  );
+};
+
+const setForcedLogoutFlag = () =>
+  new Promise<void>(resolve => {
+    chrome.storage.local.set({ scrollwiseForceLogoutAt: Date.now() }, () => resolve());
+  });
+
+const clearForcedLogoutFlag = () =>
+  new Promise<void>(resolve => {
+    chrome.storage.local.remove('scrollwiseForceLogoutAt', () => resolve());
+  });
+
 const processUploadQueue = (reason: 'alarm' | 'enqueue') => {
   const schedule = async () => {
     const auth = await getAuthState();
@@ -68,6 +85,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'AUTH_UPDATE') {
     void setAuthState(message.payload)
       .then(async () => {
+        await clearForcedLogoutFlag();
         await syncTrackingFlag();
         processUploadQueue('enqueue');
         sendResponse({ ok: true });
@@ -80,6 +98,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .then(async () => {
         await clearQueue();
         await syncTrackingFlag();
+        await broadcastToTabs({ type: 'AUTH_LOGOUT_BROADCAST' });
+        await setForcedLogoutFlag();
         sendResponse({ ok: true });
       })
       .catch(error => sendResponse({ ok: false, error }));

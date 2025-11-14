@@ -4,6 +4,8 @@ import { ReactNode, createContext, useContext, useEffect, useMemo, useState, use
 import { ApiError, api, type UserPayload } from '@/lib/api';
 import { notifyExtensionAuth, notifyExtensionLogout } from '@/lib/extensionBridge';
 
+const EXTENSION_CHANNEL = 'scrollwise-extension';
+
 interface AuthContextState {
   accessToken?: string;
   refreshToken?: string;
@@ -52,6 +54,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(undefined);
     localStorage.removeItem('scrollwise-auth');
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object' || data.source !== EXTENSION_CHANNEL) {
+        return;
+      }
+
+      if (data.type === 'AUTH_LOGOUT') {
+        clearSession();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [clearSession]);
 
   useEffect(() => {
     const stored = localStorage.getItem('scrollwise-auth');

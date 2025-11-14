@@ -69,6 +69,13 @@ VITE_API_URL=http://localhost:3000/api
 VITE_WEB_URL=http://localhost:3001
 ```
 
+## Admin access & roles
+
+- Seed a super admin account by setting `SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD` in `backend/.env`. The server elevates or creates that user on boot.
+- Sign in with those credentials through the web login page. Admins are redirected to `/admin`, and elevated controls are also reachable from the dashboard via the “Admin console” button.
+- Admin pages cover the overall summary (`/admin`) plus user management (`/admin/users`). All other accounts stay on `/dashboard`.
+- Logging out from either the web app or extension now clears the session everywhere, so elevated consoles stay protected.
+
 ## MongoDB schema
 
 - `users`: credentials, google profile, habits and avatar.

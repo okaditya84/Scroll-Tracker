@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Scrollwise",
   "description": "Track your scrolling energy and receive playful wellness insights tuned for Edge.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "permissions": [
     "storage",
     "tabs",
@@ -31,7 +31,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-CsT284gb.js"
+        "assets/index.ts-loader-DvkoiP37.js"
       ],
       "matches": [
         "<all_urls>"
@@ -47,7 +47,7 @@
       "resources": [
         "public/*",
         "assets/settings-Dy3YOXZy.js",
-        "assets/index.ts-MblXNxbm.js"
+        "assets/index.ts-BAui7S15.js"
       ],
       "use_dynamic_url": false
     }

@@ -11,7 +11,7 @@ import SummaryTiles from '@/components/summary-tiles';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { accessToken, loading, logout, refresh } = useAuth();
+  const { accessToken, loading, logout, refresh, user } = useAuth();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const [signingOut, setSigningOut] = useState(false);
@@ -104,6 +104,14 @@ export default function DashboardPage() {
             >
               ⚙️ Settings
             </button>
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+              <button
+                onClick={() => router.push('/admin')}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 px-4 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              >
+                🛠 Admin console
+              </button>
+            )}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 px-4 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"

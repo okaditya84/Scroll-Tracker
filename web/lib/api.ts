@@ -62,6 +62,7 @@ export interface UserPayload {
     dailyGoalMinutes?: number;
     notificationsEnabled?: boolean;
   };
+  role?: 'user' | 'admin' | 'superadmin';
   createdAt: string;
 }
 
