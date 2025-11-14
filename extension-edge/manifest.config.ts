@@ -5,7 +5,7 @@ const EDGE_MINIMUM_VERSION = '118.0.2088.61';
 
 export default defineManifest(async () => ({
   manifest_version: 3,
-  name: 'Scrollwise Tracker for Microsoft Edge',
+  name: 'Scrollwise',
   description: 'Track your scrolling energy and receive playful wellness insights tuned for Edge.',
   version: basePackageJson.version,
   permissions: ['storage', 'tabs', 'scripting', 'alarms', 'activeTab'],
