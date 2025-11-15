@@ -75,6 +75,13 @@ export interface AuthResponse {
   };
 }
 
+export interface PaginatedResponse<T> {
+  page: number;
+  limit: number;
+  total: number;
+  items: T[];
+}
+
 export interface TimelineEvent {
   _id: string;
   type: 'scroll' | 'click' | 'idle' | 'focus' | 'blur';
@@ -139,6 +146,9 @@ export interface GenerateInsightResponse {
 export interface TimelineResponse {
   timeline: TimelineEvent[];
 }
+
+export type AdminUserRecord = UserPayload & { _id?: string };
+export type AdminEventRecord = TimelineEvent & { userId?: string };
 
 export class ApiError extends Error {
   status: number;
@@ -241,13 +251,16 @@ export const api = {
   ,
   // Admin endpoints
   adminSummary: (token: string) =>
-    request<any>('/admin/summary', {
+    request<{ users: number; events: number; metrics: number; insights: number }>('/admin/summary', {
       headers: { Authorization: `Bearer ${token}` }
     }),
   adminListUsers: (token: string, opts?: { q?: string; page?: number; limit?: number }) =>
-    request<any>(`/admin/users?q=${encodeURIComponent(opts?.q ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
+    request<PaginatedResponse<AdminUserRecord>>(
+      `/admin/users?q=${encodeURIComponent(opts?.q ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    ),
   adminPromoteUser: (token: string, id: string) =>
     request<any>(`/admin/users/${encodeURIComponent(id)}/promote`, {
       method: 'POST',
@@ -272,16 +285,22 @@ export const api = {
     });
   },
   adminListEvents: (token: string, opts?: { userId?: string; domain?: string; page?: number; limit?: number }) =>
-    request<any>(
+    request<PaginatedResponse<AdminEventRecord>>(
       `/admin/events?userId=${encodeURIComponent(opts?.userId ?? '')}&domain=${encodeURIComponent(opts?.domain ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`,
       { headers: { Authorization: `Bearer ${token}` } }
     ),
   adminListMetrics: (token: string, opts?: { userId?: string; page?: number; limit?: number }) =>
-    request<any>(`/admin/metrics?userId=${encodeURIComponent(opts?.userId ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
+    request<PaginatedResponse<DailyMetric>>(
+      `/admin/metrics?userId=${encodeURIComponent(opts?.userId ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    ),
   adminListInsights: (token: string, opts?: { userId?: string; page?: number; limit?: number }) =>
-    request<any>(`/admin/insights?userId=${encodeURIComponent(opts?.userId ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    request<PaginatedResponse<InsightPayload & { userId?: string }>>(
+      `/admin/insights?userId=${encodeURIComponent(opts?.userId ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
 };
