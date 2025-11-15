@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
@@ -12,9 +12,11 @@ const googleEnabled = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 const LoginPageContent = () => {
   const router = useRouter();
   const params = useSearchParams();
-  const { login, accessToken, user } = useAuth();
+  const { login, logout, accessToken, refreshToken, user, loading: authLoading } = useAuth();
   const [error, setError] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [resettingSession, setResettingSession] = useState(true);
+  const resetAttemptedRef = useRef(false);
   const isExtensionFlow = params.get('ext') === 'true';
 
   const navigateAfterAuth = useCallback((role?: string) => {
@@ -25,16 +27,52 @@ const LoginPageContent = () => {
   }, [isExtensionFlow, router]);
 
   useEffect(() => {
+    if (resetAttemptedRef.current) {
+      return;
+    }
+
+    if (authLoading) {
+      return;
+    }
+
+    if (!accessToken && !refreshToken) {
+      resetAttemptedRef.current = true;
+      setResettingSession(false);
+      return;
+    }
+
+    resetAttemptedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await logout();
+      } catch (err) {
+        console.warn('Failed to clear stale session before login', err);
+      } finally {
+        if (!cancelled) {
+          setResettingSession(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, refreshToken, authLoading, logout]);
+
+  useEffect(() => {
+    if (resettingSession) return;
     if (!accessToken || !user) return;
     navigateAfterAuth(user.role);
-  }, [accessToken, user, navigateAfterAuth]);
+  }, [accessToken, user, navigateAfterAuth, resettingSession]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email'));
     const password = String(form.get('password'));
-    setLoading(true);
+    setSubmitting(true);
     setError(undefined);
     try {
       const response = await api.login({ email, password });
@@ -43,7 +81,7 @@ const LoginPageContent = () => {
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -88,16 +126,22 @@ const LoginPageContent = () => {
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting || resettingSession}
             className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white shadow-glow transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? 'Signing you in…' : 'Log in'}
+            {submitting ? 'Signing you in…' : resettingSession ? 'Preparing…' : 'Log in'}
           </button>
         </form>
         <div className="mt-6 text-center text-xs uppercase tracking-[0.4em] text-slate-600">or</div>
         <div className="mt-4 flex justify-center">
           {googleEnabled ? (
-            <GoogleLogin onSuccess={handleGoogle} onError={() => setError('Google sign-in failed')} useOneTap={false} />
+            resettingSession ? (
+              <p className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-xs text-slate-400">
+                Clearing previous session…
+              </p>
+            ) : (
+              <GoogleLogin onSuccess={handleGoogle} onError={() => setError('Google sign-in failed')} useOneTap={false} />
+            )
           ) : (
             <p className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-xs text-slate-400">
               Google sign-in is disabled. Ask your administrator to configure NEXT_PUBLIC_GOOGLE_CLIENT_ID.

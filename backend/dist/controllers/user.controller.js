@@ -18,7 +18,7 @@ export const getProfile = async (req, res) => {
     if (!user) {
         return res.status(404).json({ error: 'User not found' });
     }
-    res.json({ user: mapUser(user) });
+    res.json(mapUser(user));
 };
 export const updateProfile = async (req, res) => {
     if (!req.user) {
@@ -32,7 +32,7 @@ export const updateProfile = async (req, res) => {
     if (!user) {
         return res.status(404).json({ error: 'User not found' });
     }
-    res.json({ user: mapUser(user) });
+    res.json(mapUser(user));
 };
 export const getPreferences = async (req, res) => {
     if (!req.user) {

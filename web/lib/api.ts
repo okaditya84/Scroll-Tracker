@@ -197,10 +197,12 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(refreshToken ? { refreshToken } : {})
     }),
-  me: (token: string) =>
-    request<UserPayload>('/users/me', {
+  me: async (token: string) => {
+    const payload = await request<UserPayload | { user: UserPayload }>('/users/me', {
       headers: { Authorization: `Bearer ${token}` }
-    }),
+    });
+    return (payload as { user?: UserPayload }).user ?? (payload as UserPayload);
+  },
   updateProfile: (token: string, body: { displayName?: string; timezone?: string; avatarUrl?: string }) =>
     request<UserPayload>('/users/me', {
       method: 'PATCH',
