@@ -167,6 +167,10 @@ const App = () => {
     }
   };
 
+  const handleOpenLegal = (slug: 'terms' | 'privacy' | 'contact') => {
+    chrome.tabs.create({ url: `${WEB_URL}/legal/${slug}` });
+  };
+
   return (
     <div className="w-[340px] min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-5">
       <header className="mb-6">
@@ -318,6 +322,15 @@ const App = () => {
           {error}
         </div>
       )}
+
+      <footer className="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        <div className="flex flex-wrap gap-3">
+          <button className="underline" onClick={() => handleOpenLegal('terms')}>Terms</button>
+          <button className="underline" onClick={() => handleOpenLegal('privacy')}>Privacy</button>
+          <button className="underline" onClick={() => handleOpenLegal('contact')}>Contact</button>
+        </div>
+        <p className="mt-2">Need urgent help? Email hello@scrollwise.app and we’ll respond within a day.</p>
+      </footer>
     </div>
   );
 };

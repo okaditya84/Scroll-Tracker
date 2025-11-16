@@ -52,6 +52,28 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface TrackingSettings {
+  paused?: boolean;
+  pausedAt?: string;
+  reason?: string;
+}
+
+export interface PresenceSnapshot {
+  lastEventAt?: string;
+  lastEventType?: string;
+  lastUrl?: string;
+  lastDomain?: string;
+  lastDurationMs?: number;
+  lastScrollDistance?: number;
+}
+
+export interface ContactProfile {
+  phone?: string;
+  company?: string;
+  jobTitle?: string;
+  location?: string;
+}
+
 export interface UserPayload {
   id: string;
   email: string;
@@ -63,6 +85,10 @@ export interface UserPayload {
     notificationsEnabled?: boolean;
   };
   role?: 'user' | 'admin' | 'superadmin';
+  accountStatus?: 'active' | 'invited' | 'suspended';
+  tracking?: TrackingSettings;
+  presence?: PresenceSnapshot;
+  contact?: ContactProfile;
   createdAt: string;
 }
 
@@ -149,6 +175,50 @@ export interface TimelineResponse {
 
 export type AdminUserRecord = UserPayload & { _id?: string };
 export type AdminEventRecord = TimelineEvent & { userId?: string };
+
+export interface AuditRecord {
+  _id: string;
+  action: string;
+  actorEmail?: string;
+  targetId?: string;
+  targetType?: string;
+  createdAt: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface LiveActivityItem {
+  user?: AdminUserRecord;
+  lastEvent?: AdminEventRecord;
+  status: 'active' | 'recent' | 'idle' | 'offline';
+  windowCount: number;
+  typeCounts: Record<string, number>;
+  topDomain?: string;
+  recentEvents: AdminEventRecord[];
+}
+
+export interface AdminUserDetail {
+  user: AdminUserRecord;
+  metrics: DailyMetric[];
+  recentEvents: AdminEventRecord[];
+  insights: Array<InsightPayload & { userId?: string }>;
+  audits: AuditRecord[];
+}
+
+export interface PolicyPayload {
+  slug: 'terms' | 'privacy' | 'contact';
+  title: string;
+  body: string;
+  updatedAt: string;
+}
+
+export interface ContactMessagePayload {
+  _id: string;
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  createdAt: string;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -254,6 +324,13 @@ export const api = {
     request<{ users: number; events: number; metrics: number; insights: number }>('/admin/summary', {
       headers: { Authorization: `Bearer ${token}` }
     }),
+  adminLiveActivity: (token: string, opts?: { windowMs?: number }) =>
+    request<{ windowMs: number; updatedAt: string; items: LiveActivityItem[] }>(
+      `/admin/activity/live${opts?.windowMs ? `?windowMs=${opts.windowMs}` : ''}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    ),
   adminListUsers: (token: string, opts?: { q?: string; page?: number; limit?: number }) =>
     request<PaginatedResponse<AdminUserRecord>>(
       `/admin/users?q=${encodeURIComponent(opts?.q ?? '')}&page=${opts?.page ?? 1}&limit=${opts?.limit ?? 50}`,
@@ -261,6 +338,10 @@ export const api = {
         headers: { Authorization: `Bearer ${token}` }
       }
     ),
+  adminGetUserDetail: (token: string, id: string) =>
+    request<AdminUserDetail>(`/admin/users/${encodeURIComponent(id)}/detail`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
   adminPromoteUser: (token: string, id: string) =>
     request<any>(`/admin/users/${encodeURIComponent(id)}/promote`, {
       method: 'POST',
@@ -270,6 +351,12 @@ export const api = {
     request<any>(`/admin/users/${encodeURIComponent(id)}/demote`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` }
+    }),
+  adminUpdateTracking: (token: string, id: string, body: { paused: boolean; reason?: string }) =>
+    request<{ ok: boolean; tracking: TrackingSettings }>(`/admin/users/${encodeURIComponent(id)}/tracking`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body)
     }),
   adminDeleteUser: (token: string, id: string) =>
     request<any>(`/admin/users/${encodeURIComponent(id)}`, {
@@ -302,5 +389,24 @@ export const api = {
       {
         headers: { Authorization: `Bearer ${token}` }
       }
-    )
+    ),
+  adminListContactMessages: (token: string) =>
+    request<{ items: ContactMessagePayload[] }>('/admin/contact/messages', {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  // Content / policy endpoints
+  contentListPolicies: () => request<{ items: PolicyPayload[] }>('/content/policies'),
+  contentGetPolicy: (slug: string) => request<PolicyPayload>(`/content/policies/${slug}`),
+  contentUpdatePolicy: (token: string, slug: string, body: Partial<PolicyPayload>) =>
+    request<PolicyPayload>(`/content/policies/${slug}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body)
+    }),
+  submitContactMessage: (body: { name: string; email: string; subject?: string; message: string }, token?: string) =>
+    request<{ id: string; createdAt: string }>(`/content/contact`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify(body)
+    })
 };

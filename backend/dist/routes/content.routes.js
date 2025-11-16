@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import optionalAuth from '../middleware/optionalAuth.js';
+import isAdmin from '../middleware/admin.js';
+import { getPolicy, updatePolicy, listPolicies, submitContactMessage } from '../controllers/content.controller.js';
+const router = Router();
+router.get('/policies', listPolicies);
+router.get('/policies/:slug', getPolicy);
+router.put('/policies/:slug', isAdmin, updatePolicy);
+router.post('/contact', optionalAuth, submitContactMessage);
+export default router;

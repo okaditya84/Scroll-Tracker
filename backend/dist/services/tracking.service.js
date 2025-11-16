@@ -1,10 +1,18 @@
 import mongoose from 'mongoose';
 import DailyMetric from '../models/DailyMetric.js';
 import TrackingEvent from '../models/TrackingEvent.js';
+import User from '../models/User.js';
 import { pixelsToClimbometers, pixelsToKilometers } from '../utils/scrollConversion.js';
 export const recordEvents = async (userId, events) => {
     if (!events.length)
         return { stored: 0, acceptedKeys: [] };
+    const user = await User.findById(userId).select('tracking');
+    if (!user) {
+        return { stored: 0, acceptedKeys: [] };
+    }
+    if (user.tracking?.paused) {
+        return { stored: 0, acceptedKeys: [], trackingPaused: true };
+    }
     // Convert to DB docs and split those with idempotency keys and those without.
     const docsWithKey = events
         .filter(e => e.idempotencyKey)
@@ -69,6 +77,20 @@ export const recordEvents = async (userId, events) => {
     });
     await Promise.all([...impactedDates].map(date => aggregateDailyMetrics(userId, date)));
     const stored = (docsNoKey.length ?? 0) + (acceptedKeys.length ?? 0);
+    if (stored > 0) {
+        const latest = events[events.length - 1];
+        await User.findByIdAndUpdate(userId, {
+            $set: {
+                'presence.lastEventAt': latest?.startedAt ?? new Date(),
+                'presence.lastEventType': latest?.type,
+                'presence.lastUrl': latest?.url,
+                'presence.lastDomain': latest?.domain,
+                'presence.lastDurationMs': latest?.durationMs ?? 0,
+                'presence.lastScrollDistance': latest?.scrollDistance ?? 0,
+                accountStatus: 'active'
+            }
+        }).catch(() => undefined);
+    }
     return { stored, acceptedKeys };
 };
 export const getSummary = async (userId) => {

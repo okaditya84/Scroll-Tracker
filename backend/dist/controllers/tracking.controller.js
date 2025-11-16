@@ -20,6 +20,9 @@ export const recordEvents = async (req, res) => {
         return res.status(400).json({ error: parse.error.flatten() });
     }
     const result = await trackingService.recordEvents(req.user.sub, parse.data.events);
+    if (result && typeof result === 'object' && 'trackingPaused' in result && result.trackingPaused) {
+        return res.status(423).json({ error: 'Tracking paused by administrator', trackingPaused: true });
+    }
     // result may include acceptedKeys and stored count
     if (result && typeof result === 'object') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

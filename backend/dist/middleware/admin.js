@@ -5,6 +5,9 @@ import User from '../models/User.js';
 // Admin middleware: allow either a verified JWT with role admin/superadmin
 // or HTTP Basic auth with SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD from env.
 const isAdmin = async (req, res, next) => {
+    if (req.user?.role === 'admin' || req.user?.role === 'superadmin') {
+        return next();
+    }
     // 1) Bearer token path
     const raw = req.headers['authorization'];
     const authHeader = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : undefined;

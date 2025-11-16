@@ -5,6 +5,7 @@ import insightRoutes from './insight.routes.js';
 import userRoutes from './user.routes.js';
 import requireAuth from '../middleware/auth.js';
 import adminRoutes from './admin.routes.js';
+import contentRoutes from './content.routes.js';
 
 const router = Router();
 
@@ -13,5 +14,6 @@ router.use('/tracking', requireAuth, trackingRoutes);
 router.use('/insights', requireAuth, insightRoutes);
 router.use('/users', requireAuth, userRoutes);
 router.use('/admin', adminRoutes);
+router.use('/content', contentRoutes);
 
 export default router;

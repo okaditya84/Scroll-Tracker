@@ -1,13 +1,13 @@
 "use client";
 
-import { type ReactNode, useCallback, useMemo } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Area, AreaChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { api, ApiError } from '@/lib/api';
-import type { AdminUserRecord, InsightPayload } from '@/lib/api';
+import type { AdminUserRecord, ContactMessagePayload, InsightPayload, LiveActivityItem, PolicyPayload } from '@/lib/api';
 
 const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 
@@ -15,6 +15,7 @@ const formatNumber = (value?: number) => compactNumber.format(value ?? 0);
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { accessToken, loading, user, refresh } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -70,6 +71,36 @@ export default function AdminDashboard() {
     enabled: Boolean(accessToken) && isAdmin,
     staleTime: 60_000
   });
+
+  const liveActivityQuery = useQuery({
+    queryKey: ['admin', 'live-activity'],
+    queryFn: () => runWithAdminAuth(token => api.adminLiveActivity(token, { windowMs: 5 * 60 * 1000 })),
+    enabled: Boolean(accessToken) && isAdmin,
+    refetchInterval: 20_000,
+    refetchIntervalInBackground: true
+  });
+
+  const contactQuery = useQuery({
+    queryKey: ['admin', 'contact-queue'],
+    queryFn: () => runWithAdminAuth(token => api.adminListContactMessages(token)),
+    enabled: Boolean(accessToken) && isAdmin,
+    staleTime: 120_000
+  });
+
+  const policiesQuery = useQuery({
+    queryKey: ['policies'],
+    queryFn: () => api.contentListPolicies().then(res => res.items),
+    enabled: isAdmin,
+    staleTime: 300_000
+  });
+
+  const handlePolicySave = useCallback(
+    async (slug: PolicyPayload['slug'], payload: Partial<PolicyPayload>) => {
+      await runWithAdminAuth(token => api.contentUpdatePolicy(token, slug, payload));
+      queryClient.invalidateQueries({ queryKey: ['policies'] });
+    },
+    [runWithAdminAuth, queryClient]
+  );
 
   const metricsSeries = useMemo(() => {
     const items = metricsQuery.data?.items ?? [];
@@ -150,6 +181,10 @@ export default function AdminDashboard() {
     return items.slice(0, 4);
   }, [insightsQuery.data]);
 
+  const liveItems = liveActivityQuery.data?.items ?? [];
+  const contactMessages = contactQuery.data?.items ?? [];
+  const policies = policiesQuery.data ?? [];
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-950 to-slate-900 text-white">Preparing console…</div>;
   }
@@ -167,7 +202,8 @@ export default function AdminDashboard() {
   }
 
   const summary = summaryQuery.data;
-  const blockingError = [summaryQuery, metricsQuery, eventsQuery, usersQuery, insightsQuery].find(query => query.isError)?.error as
+  const blockingError = [summaryQuery, metricsQuery, eventsQuery, usersQuery, insightsQuery, liveActivityQuery, contactQuery, policiesQuery]
+    .find(query => query.isError)?.error as
     | Error
     | undefined;
 
@@ -316,6 +352,24 @@ export default function AdminDashboard() {
           </Panel>
         </section>
 
+        <section className="grid gap-6 xl:grid-cols-3">
+          <Panel title="Live activity" description="Real-time presence across members" className="xl:col-span-2">
+            <LiveActivityBoard
+              items={liveItems}
+              loading={liveActivityQuery.isLoading}
+              onSelectUser={(id: string) => router.push(`/admin/users/${id}`)}
+            />
+          </Panel>
+          <div className="space-y-6">
+            <Panel title="Contact queue" description="Latest requests">
+              <ContactRequests messages={contactMessages} loading={contactQuery.isLoading} />
+            </Panel>
+            <Panel title="Policy manager" description="Update legal copy with one click">
+              <PolicyManager policies={policies} onSave={handlePolicySave} loading={policiesQuery.isLoading} />
+            </Panel>
+          </div>
+        </section>
+
         <section className="grid gap-6 lg:grid-cols-2">
           <Panel title="Newest members" description="Latest sign-ups">
             <UsersTable users={newestUsers} />
@@ -418,6 +472,170 @@ const InsightsList = ({ insights }: { insights: InsightPayload[] }) => {
           <p className="mt-2 text-sm text-slate-200 line-clamp-3">{insight.body}</p>
         </article>
       ))}
+    </div>
+  );
+};
+
+const LiveActivityBoard = ({ items, loading, onSelectUser }: { items: LiveActivityItem[]; loading: boolean; onSelectUser: (id: string) => void }) => {
+  if (loading) {
+    return <p className="text-sm text-slate-400">Syncing live signals…</p>;
+  }
+  if (!items.length) {
+    return <p className="text-sm text-slate-400">No members online in the last few minutes.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.slice(0, 8).map((item, index) => {
+        const key = item.user?.id ?? item.user?._id ?? item.user?.email ?? item.lastEvent?._id ?? `activity-${index}`;
+        const lastAt = item.lastEvent?.createdAt ?? item.user?.presence?.lastEventAt;
+        const domain = item.lastEvent?.domain ?? item.user?.presence?.lastDomain;
+        const userId = item.user?.id;
+        return (
+          <button
+            key={key as string}
+            onClick={() => userId && onSelectUser(userId)}
+            className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-white/30 disabled:cursor-not-allowed"
+            disabled={!userId}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-white">{item.user?.displayName ?? 'Unknown user'}</p>
+                <p className="text-xs text-slate-400">{item.user?.email ?? 'Account archived'}</p>
+              </div>
+              <ActivityStatusBadge status={item.status} />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
+              <span>{domain ?? '—'}</span>
+              {lastAt && <span>{formatDistanceToNow(new Date(lastAt), { addSuffix: true })}</span>}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const ActivityStatusBadge = ({ status }: { status: LiveActivityItem['status'] }) => {
+  const palette: Record<string, { label: string; tone: string }> = {
+    active: { label: 'Live now', tone: 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' },
+    recent: { label: 'Recently active', tone: 'bg-blue-500/20 text-blue-200 border border-blue-400/30' },
+    idle: { label: 'Idle', tone: 'bg-amber-500/20 text-amber-200 border border-amber-400/30' },
+    offline: { label: 'Offline', tone: 'bg-slate-500/20 text-slate-200 border border-slate-400/30' }
+  };
+  const badge = palette[status] ?? palette.offline;
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.tone}`}>{badge.label}</span>;
+};
+
+const ContactRequests = ({ messages, loading }: { messages: ContactMessagePayload[]; loading: boolean }) => {
+  if (loading) {
+    return <p className="text-sm text-slate-400">Loading inbox…</p>;
+  }
+  if (!messages.length) {
+    return <p className="text-sm text-slate-400">No pending messages.</p>;
+  }
+  return (
+    <div className="space-y-3 text-sm">
+      {messages.slice(0, 3).map(message => (
+        <article key={message._id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-white">{message.name}</p>
+              <p className="text-xs text-slate-400">{message.email}</p>
+            </div>
+            <span className="text-xs text-slate-400">{formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}</span>
+          </div>
+          <p className="mt-2 text-slate-200 line-clamp-3">{message.message}</p>
+        </article>
+      ))}
+      <button
+        className="w-full rounded-2xl border border-white/20 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/40"
+        onClick={() => {
+          if (typeof window !== 'undefined') {
+            window.open('/legal/contact', '_blank');
+          }
+        }}
+      >
+        View all requests
+      </button>
+    </div>
+  );
+};
+
+const PolicyManager = ({ policies, onSave, loading }: { policies: PolicyPayload[]; onSave: (slug: PolicyPayload['slug'], payload: Partial<PolicyPayload>) => Promise<void>; loading: boolean }) => {
+  const [editing, setEditing] = useState<PolicyPayload['slug'] | null>(null);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [bodyDraft, setBodyDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  if (loading && !policies.length) {
+    return <p className="text-sm text-slate-400">Preparing policy editor…</p>;
+  }
+
+  const startEdit = (policy: PolicyPayload) => {
+    setEditing(policy.slug);
+    setTitleDraft(policy.title);
+    setBodyDraft(policy.body);
+  };
+
+  const handleSave = async () => {
+    if (!editing) return;
+    setSaving(true);
+    await onSave(editing, { title: titleDraft, body: bodyDraft });
+    setSaving(false);
+    setEditing(null);
+  };
+
+  return (
+    <div className="space-y-3 text-sm">
+      {policies.map(policy => (
+        <div key={policy.slug} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-white">{policy.title}</p>
+              <p className="text-xs text-slate-400">Updated {formatDistanceToNow(new Date(policy.updatedAt), { addSuffix: true })}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="rounded-full border border-white/20 px-3 py-1 text-xs text-white"
+                onClick={() => window.open(`/legal/${policy.slug}`, '_blank')}
+              >
+                Preview
+              </button>
+              <button className="rounded-full bg-white/20 px-3 py-1 text-xs text-white" onClick={() => startEdit(policy)}>
+                Edit
+              </button>
+            </div>
+          </div>
+          {editing === policy.slug && (
+            <div className="mt-3 space-y-2">
+              <input
+                className="w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-white"
+                value={titleDraft}
+                onChange={e => setTitleDraft(e.target.value)}
+              />
+              <textarea
+                className="h-32 w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-white"
+                value={bodyDraft}
+                onChange={e => setBodyDraft(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <button
+                  className="rounded-full bg-white/80 px-4 py-1 text-xs font-semibold text-slate-900"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button className="rounded-full border border-white/20 px-4 py-1 text-xs text-white" onClick={() => setEditing(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      {!policies.length && <p className="text-slate-400">No policies found.</p>}
     </div>
   );
 };

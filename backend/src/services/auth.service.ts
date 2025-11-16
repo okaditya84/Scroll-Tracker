@@ -126,6 +126,10 @@ export const mapUser = (user: UserDocument) => ({
   avatarUrl: user.avatarUrl,
   timezone: user.timezone,
   role: user.role ?? 'user',
+  accountStatus: (user as any).accountStatus ?? 'active',
+  tracking: (user as any).tracking,
+  presence: (user as any).presence,
+  contact: (user as any).contact,
   habits: user.habits,
   createdAt: user.createdAt
 });
