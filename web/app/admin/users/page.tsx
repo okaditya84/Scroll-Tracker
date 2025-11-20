@@ -179,7 +179,7 @@ export default function AdminUsersPage() {
                             Delete
                           </button>
                         )}
-                        {record.role === 'admin' && record.role !== 'superadmin' && (
+                        {record.role === 'admin' && (
                           <button className="rounded-full border border-amber-200 px-3 py-1 text-amber-600 dark:border-amber-900/50 dark:text-amber-300" onClick={() => handleRoleChange(record, 'demote')}>
                             Demote
                           </button>
