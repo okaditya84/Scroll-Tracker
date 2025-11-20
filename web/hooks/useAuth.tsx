@@ -25,25 +25,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const persistSession = useCallback(
-    (payload: { accessToken: string; refreshToken: string; user: UserPayload }, options?: { activateTracking?: boolean }) => {
+    (
+      payload: { accessToken: string; refreshToken: string; user: UserPayload },
+      options?: { activateTracking?: boolean; notifyExtension?: boolean }
+    ) => {
       setAccessToken(payload.accessToken);
       setRefreshToken(payload.refreshToken);
       setUser(payload.user);
       localStorage.setItem('scrollwise-auth', JSON.stringify(payload));
 
-      notifyExtensionAuth(
-        {
-          accessToken: payload.accessToken,
-          refreshToken: payload.refreshToken,
-          user: {
-            id: payload.user.id,
-            email: payload.user.email,
-            displayName: payload.user.displayName,
-            avatarUrl: payload.user.avatarUrl
-          }
-        },
-        options
-      );
+      if (options?.notifyExtension !== false) {
+        notifyExtensionAuth(
+          {
+            accessToken: payload.accessToken,
+            refreshToken: payload.refreshToken,
+            user: {
+              id: payload.user.id,
+              email: payload.user.email,
+              displayName: payload.user.displayName,
+              avatarUrl: payload.user.avatarUrl
+            }
+          },
+          { activateTracking: options?.activateTracking }
+        );
+      }
     },
     []
   );
@@ -67,12 +72,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data.type === 'AUTH_LOGOUT') {
         clearSession();
+        return;
+      }
+
+      if (data.type === 'AUTH_UPDATE' && data.payload?.accessToken && data.payload?.refreshToken) {
+        const incomingUser: UserPayload | undefined = data.payload.user ?? user;
+        if (!incomingUser) {
+          return;
+        }
+
+        persistSession(
+          {
+            accessToken: data.payload.accessToken,
+            refreshToken: data.payload.refreshToken,
+            user: incomingUser
+          },
+          { activateTracking: false, notifyExtension: false }
+        );
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [clearSession]);
+  }, [clearSession, persistSession, user]);
 
   useEffect(() => {
     const stored = localStorage.getItem('scrollwise-auth');

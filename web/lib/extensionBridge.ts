@@ -26,6 +26,7 @@ const postMessageToExtension = (message: Record<string, unknown>) => {
 export const notifyExtensionAuth = (payload: AuthPayload, options?: BroadcastOptions) => {
   postMessageToExtension({
     type: 'AUTH_UPDATE',
+    origin: 'web',
     payload: {
       ...payload,
       trackingEnabled: options?.activateTracking ? true : undefined
@@ -34,5 +35,5 @@ export const notifyExtensionAuth = (payload: AuthPayload, options?: BroadcastOpt
 };
 
 export const notifyExtensionLogout = () => {
-  postMessageToExtension({ type: 'AUTH_LOGOUT' });
+  postMessageToExtension({ type: 'AUTH_LOGOUT', origin: 'web' });
 };

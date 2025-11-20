@@ -67,6 +67,7 @@ export const refreshTokens = async (refreshToken, req) => {
     session.lastUsedAt = new Date();
     session.userAgent = req.get('user-agent') ?? session.userAgent;
     session.ip = req.ip;
+    session.expiresAt = new Date(Date.now() + env.JWT_REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
     await session.save();
     const nextRefreshToken = `${session._id.toString()}.${nextSecret}`;
     const accessToken = buildAccessToken(user, session._id.toString());

@@ -10,7 +10,7 @@ const broadcastLogoutToPage = () => {
   } catch (error) {
     console.warn('scrollwise: unable to clear web auth storage', error);
   }
-  window.postMessage({ source: EXTENSION_BROADCAST_SOURCE, type: 'AUTH_LOGOUT' }, '*');
+  window.postMessage({ source: EXTENSION_BROADCAST_SOURCE, origin: 'extension', type: 'AUTH_LOGOUT' }, '*');
 };
 
 const readForcedLogoutFlag = () =>
@@ -230,6 +230,41 @@ const authHash = (auth?: PageAuthSnapshot | null) => {
 };
 
 let lastAuthSignature: string | null = null;
+
+const broadcastAuthSnapshotToPage = (snapshot: PageAuthSnapshot) => {
+  if (!snapshot?.accessToken) return;
+  window.postMessage(
+    { source: EXTENSION_BROADCAST_SOURCE, origin: 'extension', type: 'AUTH_UPDATE', payload: snapshot },
+    '*'
+  );
+};
+
+const persistPageSnapshot = (snapshot: PageAuthSnapshot) => {
+  if (!snapshot?.accessToken) return;
+  try {
+    window.localStorage.setItem('scrollwise-auth', JSON.stringify(snapshot));
+  } catch (error) {
+    console.warn('scrollwise: unable to persist web auth storage', error);
+  }
+};
+
+const applyAuthSnapshotFromExtension = (partial: Partial<PageAuthSnapshot> | undefined) => {
+  if (!partial) return;
+  const existing = readPageAuth();
+  const next: PageAuthSnapshot = {
+    accessToken: partial.accessToken ?? existing?.accessToken ?? '',
+    refreshToken: partial.refreshToken ?? existing?.refreshToken,
+    user: partial.user ?? existing?.user
+  };
+
+  if (!next.accessToken || !next.refreshToken || !next.user) {
+    return;
+  }
+
+  persistPageSnapshot(next);
+  broadcastAuthSnapshotToPage(next);
+  lastAuthSignature = authHash(next);
+};
 
 const syncFromPageStorage = async (activateTracking = false) => {
   const snapshot = readPageAuth();
@@ -603,6 +638,12 @@ if (isRuntimeAvailable()) {
       return;
     }
 
+    if (message.type === 'AUTH_STATE_PUSH') {
+      applyAuthSnapshotFromExtension(message.payload);
+      sendResponse({ ok: true });
+      return;
+    }
+
     if (message.type === 'AUTH_LOGOUT_BROADCAST') {
       setTrackingEnabled(false);
       BUFFER.length = 0;
@@ -621,6 +662,12 @@ resetIdleTimer();
 safeSendMessage<{ enabled?: boolean }>({ type: 'TRACKING_STATUS_REQUEST' }).then(result => {
   if (result.ok) {
     setTrackingEnabled(Boolean(result.data?.enabled));
+  }
+});
+
+safeSendMessage<{ state?: PageAuthSnapshot }>({ type: 'AUTH_STATE_REQUEST' }).then(result => {
+  if (result.ok && result.data?.state) {
+    applyAuthSnapshotFromExtension(result.data.state);
   }
 });
 

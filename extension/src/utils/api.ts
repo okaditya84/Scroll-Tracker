@@ -53,14 +53,18 @@ export interface UploadResult {
   requestAuthRefresh?: boolean;
 }
 
+type UploadOptions = {
+  onTokensUpdated?: (state: AuthState) => Promise<void> | void;
+};
+
 const BATCH_SIZE = 80;
 
 // Simple mutex to avoid concurrent refreshes
-let refreshPromise: Promise<boolean> | null = null;
+let refreshPromise: Promise<AuthState | null> | null = null;
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-const refreshAccessToken = async (auth: AuthState) => {
+const refreshAccessToken = async (auth: AuthState, options?: UploadOptions) => {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
@@ -74,7 +78,7 @@ const refreshAccessToken = async (auth: AuthState) => {
       if (!response.ok) {
         // disable tracking until user re-authenticates
         await chrome.storage.local.set({ 'scrollwise-auth': { trackingEnabled: false } });
-        return false;
+        return null;
       }
 
       const data = await response.json();
@@ -82,21 +86,22 @@ const refreshAccessToken = async (auth: AuthState) => {
       // merge existing state with new tokens
       const stored = await chrome.storage.local.get('scrollwise-auth');
       const prev = stored['scrollwise-auth'] ?? {};
-      await chrome.storage.local.set({
-        'scrollwise-auth': {
-          ...prev,
-          accessToken: data.tokens.accessToken,
-          refreshToken: data.tokens.refreshToken,
-          trackingEnabled: true
-        }
-      });
+      const nextState: AuthState = {
+        ...prev,
+        accessToken: data.tokens.accessToken,
+        refreshToken: data.tokens.refreshToken,
+        trackingEnabled: true
+      };
 
-      return true;
+      await chrome.storage.local.set({ 'scrollwise-auth': nextState });
+      await options?.onTokensUpdated?.(nextState);
+
+      return nextState;
     } catch (err) {
       // network error - don't flip tracking flag here, caller will retry later
       // eslint-disable-next-line no-console
       console.warn('[scrollwise] refresh failed', (err as Error).message ?? err);
-      return false;
+      return null;
     } finally {
       refreshPromise = null;
     }
@@ -105,7 +110,7 @@ const refreshAccessToken = async (auth: AuthState) => {
   return refreshPromise;
 };
 
-export const sendEventsToApi = async (auth: AuthState): Promise<UploadResult | undefined> => {
+export const sendEventsToApi = async (auth: AuthState, options?: UploadOptions): Promise<UploadResult | undefined> => {
   const queued = await getQueuedEvents();
   if (!queued.length || !auth.accessToken) {
     return undefined;
@@ -134,7 +139,7 @@ export const sendEventsToApi = async (auth: AuthState): Promise<UploadResult | u
       });
 
       if (response.status === 401 && auth.refreshToken) {
-        const refreshed = await refreshAccessToken(auth);
+        const refreshed = await refreshAccessToken(auth, options);
         if (!refreshed) {
           // cannot refresh, disable tracking and abort for now
           return { sentIds: [], hasMore: true, requestAuthRefresh: false };
@@ -144,7 +149,11 @@ export const sendEventsToApi = async (auth: AuthState): Promise<UploadResult | u
         const stored = await chrome.storage.local.get('scrollwise-auth');
         const updated = stored['scrollwise-auth'] as AuthState | undefined;
         if (updated?.accessToken) {
-          auth = { ...auth, accessToken: updated.accessToken, refreshToken: updated.refreshToken };
+          auth = {
+            ...auth,
+            accessToken: updated.accessToken,
+            refreshToken: updated.refreshToken ?? auth.refreshToken
+          };
           // retry immediately without increasing attempt counter
           continue;
         }

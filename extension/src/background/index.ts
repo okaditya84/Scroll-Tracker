@@ -1,4 +1,4 @@
-import { clearAuthState, getAuthState, setAuthState, syncTrackingFlag } from '@/storage/auth';
+import { clearAuthState, getAuthState, setAuthState, syncTrackingFlag, type AuthState } from '@/storage/auth';
 import { clearQueue, enqueueEvents, getQueuedEvents } from '@/storage/queue';
 import { sendEventsToApi } from '@/utils/api';
 
@@ -11,6 +11,18 @@ const broadcastToTabs = async (message: Record<string, unknown>) => {
   await Promise.all(
     tabs.map(tab => (tab.id ? chrome.tabs.sendMessage(tab.id, message).catch(() => undefined) : undefined))
   );
+};
+
+const broadcastAuthUpdate = async (state: AuthState | undefined) => {
+  if (!state?.accessToken || !state?.refreshToken) return;
+  await broadcastToTabs({
+    type: 'AUTH_STATE_PUSH',
+    payload: {
+      accessToken: state.accessToken,
+      refreshToken: state.refreshToken,
+      user: state.user
+    }
+  });
 };
 
 const setForcedLogoutFlag = () =>
@@ -30,7 +42,7 @@ const processUploadQueue = (reason: 'alarm' | 'enqueue') => {
       return;
     }
 
-    const result = await sendEventsToApi(auth);
+    const result = await sendEventsToApi(auth, { onTokensUpdated: broadcastAuthUpdate });
     if (result?.sentIds?.length) {
       chrome.runtime
         .sendMessage({ type: 'SUMMARY_INVALIDATE' })
@@ -84,9 +96,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message.type === 'AUTH_UPDATE') {
     void setAuthState(message.payload)
-      .then(async () => {
+      .then(async nextState => {
         await clearForcedLogoutFlag();
         await syncTrackingFlag();
+        await broadcastAuthUpdate(nextState);
         processUploadQueue('enqueue');
         sendResponse({ ok: true });
       })
@@ -103,6 +116,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ ok: true });
       })
       .catch(error => sendResponse({ ok: false, error }));
+    return true;
+  }
+  if (message.type === 'AUTH_STATE_REQUEST') {
+    void getAuthState()
+      .then(state => sendResponse({ ok: true, state }))
+      .catch(error => sendResponse({ ok: false, error: (error as Error)?.message ?? 'unknown' }));
     return true;
   }
   if (message.type === 'TRACKING_TOGGLE') {
