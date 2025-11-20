@@ -211,7 +211,7 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900/95 to-slate-900 px-6 py-10 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-10">
         <header className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/5 px-8 py-10 backdrop-blur">
-          <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-emerald-500/20 to-transparent blur-3xl" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-emerald-500/20 to-transparent blur-3xl" aria-hidden />
           <p className="text-xs uppercase tracking-[0.4em] text-emerald-200">Scrollwise Admin</p>
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -222,16 +222,18 @@ export default function AdminDashboard() {
             </div>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => router.push('/admin/users')}
                 className="rounded-2xl border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:border-white/40"
               >
                 Manage users
               </button>
               <button
-                onClick={() => router.push('/dashboard')}
+                type="button"
+                onClick={() => router.push('/admin/usage')}
                 className="rounded-2xl bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white"
               >
-                View customer view
+                View customer usage
               </button>
             </div>
           </div>

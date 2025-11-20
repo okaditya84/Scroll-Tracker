@@ -133,6 +133,7 @@ export interface DailyBreakdown {
 }
 
 export interface DailyMetric {
+  userId?: string;
   _id?: string;
   date: string;
   totals: DailyTotals;
