@@ -1,6 +1,6 @@
 {
   "name": "scrollwise-extension-edge",
-  "version": "1.1",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "vite --config vite.config.ts",
