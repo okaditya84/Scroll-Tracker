@@ -57,3 +57,21 @@ For local testing you can use a Gmail SMTP account (remember to create an App Pa
 - Provide a comma-separated `ADMIN_EMAILS` list to grant standard admin privileges to additional accounts without manual database edits. The role is applied the next time those users authenticate.
 
 After updating these variables, redeploy the backend (or restart locally) so new sign-ins pick up the role assignments.
+
+## Resetting all user data
+
+Need to wipe every user-related collection and bootstrap a fresh admin account? Use the bundled script:
+
+```powershell
+npm run reset:users
+```
+
+The script will:
+
+- Connect to the MongoDB instance configured via `MONGODB_URI`.
+- Delete **all** documents from `User`, `Session`, `TrackingEvent`, `DailyMetric`, `Insight`, `Audit`, `ContactMessage`, `Policy`, and `OtpCode` collections.
+- Seed a brand-new admin account with:
+   - Email: `tryreverseai@gmail.com`
+   - Password: `hArrYPOTTER@4`
+
+Run it only in environments where it is safe to drop every user record. The admin credentials can be changed later via the standard password-update flows or by editing `src/scripts/resetUsers.ts` before executing the script.

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { ensureSuperadminRole } from '../utils/superadmin.js';
 const REFRESH_COOKIE = {
     httpOnly: true,
     sameSite: 'lax',
@@ -58,10 +59,11 @@ export const refreshTokens = async (refreshToken, req) => {
     if (!valid) {
         throw new Error('Token mismatch');
     }
-    const user = await User.findById(session.userId);
+    let user = await User.findById(session.userId);
     if (!user) {
         throw new Error('User missing');
     }
+    user = (await ensureSuperadminRole(user));
     const nextSecret = generateRefreshSecret();
     session.refreshTokenHash = await bcrypt.hash(nextSecret, 10);
     session.lastUsedAt = new Date();

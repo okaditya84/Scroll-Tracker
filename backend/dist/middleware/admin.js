@@ -15,6 +15,12 @@ const isAdmin = async (req, res, next) => {
     if (token) {
         try {
             const payload = jwt.verify(token, env.JWT_SECRET);
+            const payloadEmail = typeof payload?.email === 'string' ? payload.email.toLowerCase() : undefined;
+            const superEmail = env.SUPERADMIN_EMAIL?.toLowerCase().trim();
+            if (superEmail && payloadEmail === superEmail) {
+                req.user = { ...payload, role: 'superadmin' };
+                return next();
+            }
             // if token includes a role claim, allow admin roles
             if (payload?.role === 'admin' || payload?.role === 'superadmin') {
                 req.user = payload;

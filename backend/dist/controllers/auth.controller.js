@@ -5,6 +5,7 @@ import env from '../config/env.js';
 import User from '../models/User.js';
 import * as authService from '../services/auth.service.js';
 import logger from '../utils/logger.js';
+import { ensureSuperadminRole } from '../utils/superadmin.js';
 const registerSchema = z.object({
     email: z.string().email(),
     password: z.string().min(8),
@@ -22,7 +23,8 @@ export const register = async (req, res) => {
         return res.status(409).json({ error: 'Email already registered' });
     }
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({ email: email.toLowerCase(), passwordHash, displayName, timezone });
+    let user = await User.create({ email: email.toLowerCase(), passwordHash, displayName, timezone });
+    user = (await ensureSuperadminRole(user));
     const sessionBundle = await authService.createSession(user, req);
     authService.attachRefreshCookie(res, sessionBundle.refreshToken);
     res.status(201).json(authService.serializeAuthResponse(user, sessionBundle));
@@ -37,7 +39,8 @@ export const login = async (req, res) => {
         return res.status(400).json({ error: parse.error.flatten() });
     }
     const { email, password } = parse.data;
-    const user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: email.toLowerCase() });
+    user = await ensureSuperadminRole(user);
     if (!user || !user.passwordHash) {
         return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -125,6 +128,7 @@ export const googleSignIn = async (req, res) => {
         }
         await user.save();
     }
+    user = (await ensureSuperadminRole(user));
     const bundle = await authService.createSession(user, req);
     authService.attachRefreshCookie(res, bundle.refreshToken);
     res.json(authService.serializeAuthResponse(user, bundle));
