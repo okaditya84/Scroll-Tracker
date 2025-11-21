@@ -1,29 +1,8 @@
-import nodemailer from 'nodemailer';
+import axios from 'axios';
 import env from '../config/env.js';
 import logger from './logger.js';
 
-const createTransporter = () =>
-  nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_SECURE || env.SMTP_PORT === 465,
-    pool: env.SMTP_USE_POOL,
-    auth: {
-      user: env.SMTP_USERNAME,
-      pass: env.SMTP_PASSWORD
-    },
-    requireTLS: env.SMTP_REQUIRE_TLS,
-    connectionTimeout: env.SMTP_CONNECTION_TIMEOUT_MS,
-    socketTimeout: env.SMTP_SOCKET_TIMEOUT_MS,
-    greetingTimeout: env.SMTP_GREETING_TIMEOUT_MS,
-    tls: {
-      rejectUnauthorized: env.SMTP_TLS_REJECT_UNAUTHORIZED,
-      minVersion: 'TLSv1.2'
-    },
-    ...(env.SMTP_FORCE_IPV4 ? { family: 4 } : {})
-  } as nodemailer.TransportOptions);
-
-let transporter = createTransporter();
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 export interface SendMailOptions {
   to: string;
@@ -34,43 +13,39 @@ export interface SendMailOptions {
 
 export const sendMail = async ({ to, subject, text, html }: SendMailOptions) => {
   try {
-    await transporter.sendMail({
-      from: {
-        name: env.SMTP_FROM_NAME,
-        address: env.SMTP_FROM_EMAIL
-      },
-      to,
-      subject,
-      text,
-      html
-    });
-  } catch (error) {
-    const hint = (error as any)?.code === 'ETIMEDOUT'
-      ? 'SMTP connection timed out. Verify outbound access to your SMTP host, or set SMTP_FORCE_IPV4=false if your provider requires IPv6.'
-      : undefined;
-    logger.error({ error, hint }, 'Failed to send email');
-    throw error;
-  }
-};
-
-export const refreshTransporter = () => {
-  transporter = createTransporter();
-};
-
-export const verifyMailer = async () => {
-  try {
-    await transporter.verify();
-    logger.info('SMTP transport verified successfully');
-  } catch (error) {
-    logger.error(
+    await axios.post(
+      BREVO_ENDPOINT,
       {
-        error,
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        username: env.SMTP_USERNAME
+        sender: {
+          email: env.BREVO_FROM_EMAIL,
+          name: env.BREVO_FROM_NAME
+        },
+        to: [{ email: to }],
+        subject,
+        textContent: text,
+        htmlContent: html ?? `<p>${text}</p>`
       },
-      'SMTP verification failed. Double-check credentials, ports, and outbound firewall rules.'
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': env.BREVO_API_KEY
+        },
+        timeout: env.BREVO_TIMEOUT_MS
+      }
     );
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      logger.error(
+        {
+          status: error.response?.status,
+          data: error.response?.data
+        },
+        'Failed to send email via Brevo'
+      );
+    } else {
+      logger.error({ error }, 'Failed to send email via Brevo');
+    }
     throw error;
   }
 };

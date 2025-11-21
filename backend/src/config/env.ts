@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { cleanEnv, str, port, num, bool } from 'envalid';
+import { cleanEnv, str, port, num } from 'envalid';
 
 const normalizeOrigin = (value?: string) => {
   if (!value) return undefined;
@@ -33,21 +33,10 @@ const raw = cleanEnv(process.env, {
   SUPERADMIN_EMAIL: str({ default: '' }),
   SUPERADMIN_PASSWORD: str({ default: '' }),
   CORS_ADDITIONAL_ORIGINS: str({ default: '' }),
-  SMTP_HOST: str(),
-  SMTP_PORT: port({ default: 587 }),
-  SMTP_USERNAME: str(),
-  SMTP_PASSWORD: str(),
-  SMTP_FROM_EMAIL: str(),
-  SMTP_FROM_NAME: str({ default: 'Scrollwise' }),
-  SMTP_SECURE: bool({ default: false }),
-  SMTP_REQUIRE_TLS: bool({ default: true }),
-  SMTP_TLS_REJECT_UNAUTHORIZED: bool({ default: true }),
-  SMTP_USE_POOL: bool({ default: false }),
-  SMTP_CONNECTION_TIMEOUT_MS: num({ default: 15000 }),
-  SMTP_SOCKET_TIMEOUT_MS: num({ default: 20000 }),
-  SMTP_GREETING_TIMEOUT_MS: num({ default: 10000 }),
-  SMTP_FORCE_IPV4: bool({ default: true }),
-  SMTP_SKIP_STARTUP_CHECK: bool({ default: false }),
+  BREVO_API_KEY: str(),
+  BREVO_FROM_EMAIL: str(),
+  BREVO_FROM_NAME: str({ default: 'Scrollwise' }),
+  BREVO_TIMEOUT_MS: num({ default: 15000 }),
   OTP_TTL_MINUTES: num({ default: 10 }),
   OTP_THROTTLE_PER_HOUR: num({ default: 5 }),
   OTP_MAX_ATTEMPTS: num({ default: 5 })

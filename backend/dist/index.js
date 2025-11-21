@@ -5,7 +5,6 @@ import registerJobs from './jobs/index.js';
 import logger from './utils/logger.js';
 import User from './models/User.js';
 import bcrypt from 'bcryptjs';
-import { verifyMailer } from './utils/mailer.js';
 const start = async () => {
     try {
         await connectDb();
@@ -47,13 +46,6 @@ const start = async () => {
                     logger.warn({ err, addr }, 'Failed to promote admin email during startup');
                 }
             }
-        }
-        const verifyPromise = verifyMailer();
-        if (env.SMTP_SKIP_STARTUP_CHECK) {
-            verifyPromise.catch(error => logger.warn({ error }, 'SMTP verification failed but startup check is disabled. Email delivery may be unavailable.'));
-        }
-        else {
-            await verifyPromise;
         }
         const app = createServer();
         registerJobs();

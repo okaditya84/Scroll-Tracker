@@ -42,28 +42,20 @@ For troubleshooting Render deployments:
 
 ## Email + OTP configuration
 
-Email-based OTP flows require an SMTP account. Provide the following environment variables (see `.env.example`):
+Email-based OTP flows now use [Brevo (Sendinblue) transactional email](https://www.brevo.com/). Configure the following environment variables (see `.env.example`):
 
-- `SMTP_HOST`, `SMTP_PORT`
-- `SMTP_USERNAME`, `SMTP_PASSWORD`
-- `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`
-- Optional tuning knobs: `OTP_TTL_MINUTES`, `OTP_THROTTLE_PER_HOUR`, `OTP_MAX_ATTEMPTS`
+- `BREVO_API_KEY` – Create an API key in Brevo under SMTP & API → Create a new key. Use the “Transactional” scope.
+- `BREVO_FROM_EMAIL` – The verified sender email in Brevo (verify it in Brevo → Senders & IPs → Domains/Senders).
+- `BREVO_FROM_NAME` – Friendly display name. Default: `Scrollwise`.
+- `BREVO_TIMEOUT_MS` – Optional request timeout (default 15000 ms). Increase only if your region has high latency to Brevo’s API.
 
-Additional SMTP hardening knobs are available so production deploys fail fast instead of timing out for two minutes when the provider can’t be reached:
+Setup checklist:
 
-- `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_TLS_REJECT_UNAUTHORIZED` — control TLS mode explicitly when your provider requires STARTTLS vs. SMTPS.
-- `SMTP_USE_POOL` — enable Nodemailer’s connection pooling for high volume bursts.
-- `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_SOCKET_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS` — lower these values if your platform drops long-lived idle sockets.
-- `SMTP_FORCE_IPV4` — set to `false` only if your provider requires IPv6. Keeping it `true` avoids the common IPv6 timeout against Gmail on Render.
-- `SMTP_SKIP_STARTUP_CHECK` — set to `true` only if you want the API to boot even when SMTP credentials are invalid (useful for review builds). By default, the server verifies the SMTP connection on startup and fails fast with actionable logs if it cannot connect.
+1. Sign up for Brevo, validate your sending domain or single sender.
+2. Generate an API key and store it in your deployment platform as `BREVO_API_KEY` (never commit it).
+3. Redeploy/restart the backend. The first email send will fail loudly if the key or sender is invalid, with the Brevo error code logged.
 
-**Gmail-specific tips**
-
-- Use an App Password (not your regular login) and keep `SMTP_REQUIRE_TLS=true`, `SMTP_SECURE=false`, `SMTP_PORT=587`.
-- Render’s IPv6 egress occasionally times out against Gmail; the default `SMTP_FORCE_IPV4=true` fixes that. Flip it to `false` only if you know your provider only offers IPv6.
-- If you continue to see `ETIMEDOUT` errors, double-check that the outbound firewall in your hosting provider allows SMTP (ports 465/587) and that you don’t have corporate blocks on Gmail’s SMTP endpoints.
-
-For local testing you can use a Gmail SMTP account (remember to create an App Password) or any transactional email provider that supports SMTP. Once configured, the API will send OTP codes for signup verification and password resets automatically.
+If you prefer another email provider, adapt `src/utils/mailer.ts` accordingly (it only depends on axios and expects a `sendMail` function that resolves when delivery is accepted).
 
 ## Admin and superadmin accounts
 
