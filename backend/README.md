@@ -39,3 +39,14 @@ For troubleshooting Render deployments:
 1. Confirm the Build tab succeeded (artifacts uploaded).
 2. If the service exits with status 134 or "heap out of memory", verify the start script isn’t re-running the compiler.
 3. You can temporarily set `NODE_OPTIONS=--max-old-space-size=512` in Render’s environment only if long-running scripts need additional headroom, but it shouldn’t be necessary with the streamlined start command.
+
+## Email + OTP configuration
+
+Email-based OTP flows require an SMTP account. Provide the following environment variables (see `.env.example`):
+
+- `SMTP_HOST`, `SMTP_PORT`
+- `SMTP_USERNAME`, `SMTP_PASSWORD`
+- `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`
+- Optional tuning knobs: `OTP_TTL_MINUTES`, `OTP_THROTTLE_PER_HOUR`, `OTP_MAX_ATTEMPTS`
+
+For local testing you can use a Gmail SMTP account (remember to create an App Password) or any transactional email provider that supports SMTP. Once configured, the API will send OTP codes for signup verification and password resets automatically.

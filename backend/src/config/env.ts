@@ -31,7 +31,16 @@ const raw = cleanEnv(process.env, {
   EXTENSION_URLS: str({ default: '' }),
   SUPERADMIN_EMAIL: str({ default: '' }),
   SUPERADMIN_PASSWORD: str({ default: '' }),
-  CORS_ADDITIONAL_ORIGINS: str({ default: '' })
+  CORS_ADDITIONAL_ORIGINS: str({ default: '' }),
+  SMTP_HOST: str(),
+  SMTP_PORT: port({ default: 587 }),
+  SMTP_USERNAME: str(),
+  SMTP_PASSWORD: str(),
+  SMTP_FROM_EMAIL: str(),
+  SMTP_FROM_NAME: str({ default: 'Scrollwise' }),
+  OTP_TTL_MINUTES: num({ default: 10 }),
+  OTP_THROTTLE_PER_HOUR: num({ default: 5 }),
+  OTP_MAX_ATTEMPTS: num({ default: 5 })
 });
 
 const extensionOrigins = [raw.EXTENSION_URL, ...parseCsv(raw.EXTENSION_URLS)]

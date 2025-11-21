@@ -6,6 +6,7 @@ import DailyMetric from '../models/DailyMetric.js';
 import Insight from '../models/Insight.js';
 import Audit from '../models/Audit.js';
 import logger from '../utils/logger.js';
+import { buildOtpMetrics } from '../services/otp.service.js';
 
 const parsePager = (req: Request) => {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -286,4 +287,10 @@ export const liveActivity = async (req: Request, res: Response) => {
   });
 
   res.json({ windowMs, updatedAt: new Date(), items });
+};
+
+export const listOtpMetrics = async (req: Request, res: Response) => {
+  const window = Math.min(30, Math.max(1, Number(req.query.windowDays) || 14));
+  const summary = await buildOtpMetrics(window);
+  res.json(summary);
 };

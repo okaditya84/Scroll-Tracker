@@ -278,6 +278,26 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(refreshToken ? { refreshToken } : {})
     }),
+  requestSignupOtp: (body: { email: string; password: string; displayName: string; timezone?: string }) =>
+    request<{ message: string; expiresAt: string }>('/auth/signup/request-otp', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
+  verifySignupOtp: (body: { email: string; code: string }) =>
+    request<AuthResponse>('/auth/signup/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
+  requestPasswordOtp: (body: { email: string }) =>
+    request<{ message: string }>('/auth/password/request-otp', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
+  resetPasswordWithOtp: (body: { email: string; code: string; password: string }) =>
+    request<AuthResponse>('/auth/password/reset', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
   me: async (token: string) => {
     const payload = await request<UserPayload | { user: UserPayload }>('/users/me', {
       headers: { Authorization: `Bearer ${token}` }

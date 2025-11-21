@@ -21,5 +21,6 @@ router.get('/insights', adminController.listInsights);
 router.get('/summary', adminController.summary);
 router.get('/activity/live', adminController.liveActivity);
 router.get('/contact/messages', listContactMessages);
+router.get('/otp/metrics', adminController.listOtpMetrics);
 
 export default router;
