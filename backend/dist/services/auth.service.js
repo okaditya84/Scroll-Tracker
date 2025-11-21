@@ -13,12 +13,15 @@ const REFRESH_COOKIE = {
     maxAge: env.JWT_REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000
 };
 const getUserId = (user) => user._id.toString();
-const buildAccessToken = (user, sessionId) => {
+const buildAccessToken = async (user, sessionId) => {
+    // always read the most recent role from the database to avoid stale-document races
+    const fresh = await User.findById(user._id).select('role email displayName');
+    const role = fresh?.role ?? user.role ?? 'user';
     const payload = {
         sub: getUserId(user),
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role ?? 'user',
+        email: fresh?.email ?? user.email,
+        displayName: fresh?.displayName ?? user.displayName,
+        role,
         sessionId
     };
     const secret = env.JWT_SECRET;
@@ -40,7 +43,7 @@ export const createSession = async (user, req) => {
         expiresAt
     });
     const refreshToken = `${session._id.toString()}.${secret}`;
-    const accessToken = buildAccessToken(user, session._id.toString());
+    const accessToken = await buildAccessToken(user, session._id.toString());
     return { accessToken, refreshToken, session };
 };
 export const refreshTokens = async (refreshToken, req) => {
@@ -72,7 +75,7 @@ export const refreshTokens = async (refreshToken, req) => {
     session.expiresAt = new Date(Date.now() + env.JWT_REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
     await session.save();
     const nextRefreshToken = `${session._id.toString()}.${nextSecret}`;
-    const accessToken = buildAccessToken(user, session._id.toString());
+    const accessToken = await buildAccessToken(user, session._id.toString());
     return { accessToken, refreshToken: nextRefreshToken, session };
 };
 export const revokeRefreshToken = async (refreshToken) => {

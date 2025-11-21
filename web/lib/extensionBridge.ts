@@ -1,14 +1,11 @@
+import type { UserPayload } from '@/lib/api';
+
 const CHANNEL = 'scrollwise-web';
 
 type AuthPayload = {
   accessToken: string;
   refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    displayName: string;
-    avatarUrl?: string;
-  };
+  user: UserPayload;
 };
 
 type BroadcastOptions = {

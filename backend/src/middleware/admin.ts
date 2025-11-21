@@ -37,7 +37,8 @@ const isAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
       if (payload?.sub) {
         const user = await User.findById(payload.sub).select('role');
         if (user && (user.role === 'admin' || user.role === 'superadmin')) {
-          req.user = payload;
+          // attach the authoritative role from the database to the request
+          req.user = { ...payload, role: user.role } as any;
           return next();
         }
       }

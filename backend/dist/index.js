@@ -26,6 +26,27 @@ const start = async () => {
                 logger.info('Existing user elevated to superadmin from environment');
             }
         }
+        // Promote any admin emails listed in ADMIN_EMAILS
+        if (env.adminEmails && env.adminEmails.length) {
+            for (const addr of env.adminEmails) {
+                try {
+                    const email = addr.toLowerCase().trim();
+                    if (!email)
+                        continue;
+                    const user = await User.findOne({ email });
+                    if (user) {
+                        if (user.role !== 'admin' && user.role !== 'superadmin') {
+                            user.role = 'admin';
+                            await user.save();
+                            logger.info({ email }, 'Promoted existing user to admin from ADMIN_EMAILS');
+                        }
+                    }
+                }
+                catch (err) {
+                    logger.warn({ err, addr }, 'Failed to promote admin email during startup');
+                }
+            }
+        }
         const app = createServer();
         registerJobs();
         app.listen(env.PORT, () => {

@@ -1,7 +1,18 @@
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  email: string;
+  avatarUrl?: string;
+  role?: 'user' | 'admin' | 'superadmin';
+  timezone?: string;
+  accountStatus?: 'active' | 'invited' | 'suspended';
+  createdAt?: string;
+}
+
 export interface AuthState {
   accessToken?: string;
   refreshToken?: string;
-  user?: { id: string; displayName: string; email: string };
+  user?: AuthUser;
   trackingEnabled: boolean;
 }
 
@@ -23,7 +34,7 @@ export const setAuthState = async (update: AuthStateUpdate) => {
   const next: AuthState = {
     accessToken: update.accessToken ?? current.accessToken,
     refreshToken: update.refreshToken ?? current.refreshToken,
-    user: update.user ?? current.user,
+    user: update.user ? { ...current.user, ...update.user } : current.user,
     trackingEnabled: update.trackingEnabled ?? current.trackingEnabled
   };
 

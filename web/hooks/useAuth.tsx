@@ -39,12 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           {
             accessToken: payload.accessToken,
             refreshToken: payload.refreshToken,
-            user: {
-              id: payload.user.id,
-              email: payload.user.email,
-              displayName: payload.user.displayName,
-              avatarUrl: payload.user.avatarUrl
-            }
+            user: payload.user
           },
           { activateTracking: options?.activateTracking }
         );
@@ -76,8 +71,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.type === 'AUTH_UPDATE' && data.payload?.accessToken && data.payload?.refreshToken) {
-        const incomingUser: UserPayload | undefined = data.payload.user ?? user;
-        if (!incomingUser) {
+        const mergedUser: UserPayload | undefined = data.payload.user
+          ? ({ ...(user ?? {}), ...data.payload.user } as UserPayload)
+          : user;
+
+        if (!mergedUser) {
           return;
         }
 
@@ -85,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           {
             accessToken: data.payload.accessToken,
             refreshToken: data.payload.refreshToken,
-            user: incomingUser
+            user: mergedUser
           },
           { activateTracking: false, notifyExtension: false }
         );

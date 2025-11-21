@@ -200,7 +200,16 @@ const safeSendMessage = <T = unknown>(message: unknown): Promise<MessageResult<T
 type PageAuthSnapshot = {
   accessToken: string;
   refreshToken?: string;
-  user?: { id?: string; email?: string; displayName?: string; avatarUrl?: string };
+  user?: {
+    id?: string;
+    email?: string;
+    displayName?: string;
+    avatarUrl?: string;
+    role?: 'user' | 'admin' | 'superadmin';
+    timezone?: string;
+    accountStatus?: 'active' | 'invited' | 'suspended';
+    createdAt?: string;
+  };
 };
 
 const readPageAuth = (): PageAuthSnapshot | undefined => {
@@ -251,10 +260,13 @@ const persistPageSnapshot = (snapshot: PageAuthSnapshot) => {
 const applyAuthSnapshotFromExtension = (partial: Partial<PageAuthSnapshot> | undefined) => {
   if (!partial) return;
   const existing = readPageAuth();
+  const mergedUser = partial.user
+    ? { ...(existing?.user ?? {}), ...partial.user }
+    : existing?.user;
   const next: PageAuthSnapshot = {
     accessToken: partial.accessToken ?? existing?.accessToken ?? '',
     refreshToken: partial.refreshToken ?? existing?.refreshToken,
-    user: partial.user ?? existing?.user
+    user: mergedUser
   };
 
   if (!next.accessToken || !next.refreshToken || !next.user) {

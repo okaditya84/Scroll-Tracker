@@ -25,12 +25,16 @@ const REFRESH_COOKIE: CookieOptions = {
 
 const getUserId = (user: UserDocument) => user._id.toString();
 
-const buildAccessToken = (user: UserDocument, sessionId: string) => {
+const buildAccessToken = async (user: UserDocument, sessionId: string) => {
+  // always read the most recent role from the database to avoid stale-document races
+  const fresh = await User.findById(user._id).select('role email displayName');
+  const role = (fresh as any)?.role ?? (user as any).role ?? 'user';
+
   const payload: Partial<JwtPayload> = {
     sub: getUserId(user),
-    email: user.email,
-    displayName: user.displayName,
-    role: (user as any).role ?? 'user',
+    email: (fresh as any)?.email ?? user.email,
+    displayName: (fresh as any)?.displayName ?? user.displayName,
+    role,
     sessionId
   };
 
@@ -57,7 +61,7 @@ export const createSession = async (user: UserDocument, req: Request): Promise<S
   });
 
   const refreshToken = `${session._id.toString()}.${secret}`;
-  const accessToken = buildAccessToken(user, session._id.toString());
+  const accessToken = await buildAccessToken(user, session._id.toString());
 
   return { accessToken, refreshToken, session };
 };
@@ -98,7 +102,7 @@ export const refreshTokens = async (refreshToken: string, req: Request): Promise
   await session.save();
 
   const nextRefreshToken = `${session._id.toString()}.${nextSecret}`;
-  const accessToken = buildAccessToken(user, session._id.toString());
+  const accessToken = await buildAccessToken(user, session._id.toString());
   return { accessToken, refreshToken: nextRefreshToken, session };
 };
 
