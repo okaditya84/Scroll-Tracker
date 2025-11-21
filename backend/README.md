@@ -49,6 +49,20 @@ Email-based OTP flows require an SMTP account. Provide the following environment
 - `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`
 - Optional tuning knobs: `OTP_TTL_MINUTES`, `OTP_THROTTLE_PER_HOUR`, `OTP_MAX_ATTEMPTS`
 
+Additional SMTP hardening knobs are available so production deploys fail fast instead of timing out for two minutes when the provider can’t be reached:
+
+- `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_TLS_REJECT_UNAUTHORIZED` — control TLS mode explicitly when your provider requires STARTTLS vs. SMTPS.
+- `SMTP_USE_POOL` — enable Nodemailer’s connection pooling for high volume bursts.
+- `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_SOCKET_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS` — lower these values if your platform drops long-lived idle sockets.
+- `SMTP_FORCE_IPV4` — set to `false` only if your provider requires IPv6. Keeping it `true` avoids the common IPv6 timeout against Gmail on Render.
+- `SMTP_SKIP_STARTUP_CHECK` — set to `true` only if you want the API to boot even when SMTP credentials are invalid (useful for review builds). By default, the server verifies the SMTP connection on startup and fails fast with actionable logs if it cannot connect.
+
+**Gmail-specific tips**
+
+- Use an App Password (not your regular login) and keep `SMTP_REQUIRE_TLS=true`, `SMTP_SECURE=false`, `SMTP_PORT=587`.
+- Render’s IPv6 egress occasionally times out against Gmail; the default `SMTP_FORCE_IPV4=true` fixes that. Flip it to `false` only if you know your provider only offers IPv6.
+- If you continue to see `ETIMEDOUT` errors, double-check that the outbound firewall in your hosting provider allows SMTP (ports 465/587) and that you don’t have corporate blocks on Gmail’s SMTP endpoints.
+
 For local testing you can use a Gmail SMTP account (remember to create an App Password) or any transactional email provider that supports SMTP. Once configured, the API will send OTP codes for signup verification and password resets automatically.
 
 ## Admin and superadmin accounts

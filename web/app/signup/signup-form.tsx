@@ -20,8 +20,22 @@ export default function SignupForm() {
   const [pendingPassword, setPendingPassword] = useState<string | undefined>();
   const [pendingDisplayName, setPendingDisplayName] = useState<string | undefined>();
   const [otpCode, setOtpCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const isExtensionFlow = searchParams.get('ext') === 'true';
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+
+  const passwordHasMinLength = password.length >= 8;
+  const passwordHasSpecial = /[^A-Za-z0-9]/.test(password);
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordChecklist = [
+    { id: 'length', label: 'At least 8 characters', met: passwordHasMinLength, pending: password.length === 0 },
+    { id: 'special', label: 'Includes a special character', met: passwordHasSpecial, pending: password.length === 0 },
+    { id: 'match', label: 'Passwords match', met: passwordsMatch, pending: confirmPassword.length === 0 }
+  ];
+  const canSubmitPassword = passwordHasMinLength && passwordHasSpecial && passwordsMatch;
 
   useEffect(() => {
     if (!isExtensionFlow || !accessToken) return;
@@ -39,9 +53,12 @@ export default function SignupForm() {
 
   const handleOtpRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canSubmitPassword) {
+      setError('Please meet the password requirements before continuing.');
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email'));
-    const password = String(form.get('password'));
     const displayName = String(form.get('displayName'));
     setLoading(true);
     setError(undefined);
@@ -53,6 +70,8 @@ export default function SignupForm() {
       setPendingPassword(password);
       setPendingDisplayName(displayName);
       setStep('otp');
+  setPassword('');
+  setConfirmPassword('');
       setInfo('We sent a one-time code to your email. Enter it below to finish creating your account.');
     } catch (err) {
       setError((err as Error).message);
@@ -101,6 +120,8 @@ export default function SignupForm() {
     setPendingPassword(undefined);
     setPendingDisplayName(undefined);
     setOtpCode('');
+    setPassword('');
+    setConfirmPassword('');
     setError(undefined);
     setInfo(undefined);
   };
@@ -163,18 +184,77 @@ export default function SignupForm() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
-              <input
-                type="password"
-                name="password"
-                required
-                minLength={8}
-                disabled={loading}
-                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={event => setPassword(event.target.value)}
+                  disabled={loading}
+                  className="w-full px-4 py-2 pr-12 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(value => !value)}
+                  className="absolute inset-y-0 right-3 flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm password</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  required
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={event => setConfirmPassword(event.target.value)}
+                  disabled={loading}
+                  className={`w-full px-4 py-2 pr-12 rounded-lg border ${passwordsMatch || confirmPassword.length === 0 ? 'border-slate-300 dark:border-slate-700' : 'border-red-400 dark:border-red-500'} bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 ${passwordsMatch ? 'focus:ring-emerald-500' : 'focus:ring-blue-500'} disabled:opacity-50`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(value => !value)}
+                  className="absolute inset-y-0 right-3 flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                >
+                  {showConfirmPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Password rules</p>
+              <div className="mt-3 space-y-2">
+                {passwordChecklist.map(rule => {
+                  const stateClass = rule.met
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : rule.pending
+                      ? 'text-slate-500 dark:text-slate-500'
+                      : 'text-red-500 dark:text-red-400';
+                  const badgeClass = rule.met
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200'
+                    : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+                  return (
+                    <div key={rule.id} className={`flex items-center gap-2 text-sm ${stateClass}`}>
+                      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold ${badgeClass}`}>
+                        {rule.met ? '✓' : '•'}
+                      </span>
+                      <span>{rule.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSubmitPassword}
               className="w-full px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
             >
               {loading ? 'Sending code…' : 'Send verification code'}
