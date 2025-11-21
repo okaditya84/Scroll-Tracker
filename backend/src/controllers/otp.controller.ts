@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import Audit from '../models/Audit.js';
 import * as authService from '../services/auth.service.js';
 import { issueOtp, verifyOtp } from '../services/otp.service.js';
+import { ensureSuperadminRole } from '../utils/superadmin.js';
 
 const signupRequestSchema = z.object({
   email: z.string().email(),
@@ -83,12 +84,14 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'Email already registered' });
   }
 
-  const user = await User.create({
+  let user = await User.create({
     email: email.toLowerCase(),
     passwordHash,
     displayName,
     timezone
   });
+
+  user = (await ensureSuperadminRole(user))!;
 
   await Audit.create({
     actorId: user._id,

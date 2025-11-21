@@ -50,3 +50,10 @@ Email-based OTP flows require an SMTP account. Provide the following environment
 - Optional tuning knobs: `OTP_TTL_MINUTES`, `OTP_THROTTLE_PER_HOUR`, `OTP_MAX_ATTEMPTS`
 
 For local testing you can use a Gmail SMTP account (remember to create an App Password) or any transactional email provider that supports SMTP. Once configured, the API will send OTP codes for signup verification and password resets automatically.
+
+## Admin and superadmin accounts
+
+- Set `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` to reserve a specific email as the super administrator. When that user registers or signs in, their role is automatically upgraded to `superadmin`.
+- Provide a comma-separated `ADMIN_EMAILS` list to grant standard admin privileges to additional accounts without manual database edits. The role is applied the next time those users authenticate.
+
+After updating these variables, redeploy the backend (or restart locally) so new sign-ins pick up the role assignments.

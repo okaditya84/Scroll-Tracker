@@ -7,6 +7,7 @@ import env from '../config/env.js';
 import Session, { SessionDocument } from '../models/Session.js';
 import User, { UserDocument } from '../models/User.js';
 import { JwtPayload } from '../types/jwt.js';
+import { ensureSuperadminRole } from '../utils/superadmin.js';
 
 interface SessionBundle {
   accessToken: string;
@@ -81,10 +82,12 @@ export const refreshTokens = async (refreshToken: string, req: Request): Promise
     throw new Error('Token mismatch');
   }
 
-  const user = await User.findById(session.userId);
+  let user = await User.findById(session.userId);
   if (!user) {
     throw new Error('User missing');
   }
+
+  user = (await ensureSuperadminRole(user))!;
 
   const nextSecret = generateRefreshSecret();
   session.refreshTokenHash = await bcrypt.hash(nextSecret, 10);

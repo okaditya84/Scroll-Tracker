@@ -29,6 +29,7 @@ const raw = cleanEnv(process.env, {
   FRONTEND_URL: str(),
   EXTENSION_URL: str(),
   EXTENSION_URLS: str({ default: '' }),
+  ADMIN_EMAILS: str({ default: '' }),
   SUPERADMIN_EMAIL: str({ default: '' }),
   SUPERADMIN_PASSWORD: str({ default: '' }),
   CORS_ADDITIONAL_ORIGINS: str({ default: '' }),
@@ -66,11 +67,13 @@ const wildcardExtensionOrigins = extensionSchemes.size
   : [];
 
 const allowedOrigins = Array.from(new Set([...baseAllowedOrigins, ...wildcardExtensionOrigins]));
+const adminEmails = parseCsv(raw.ADMIN_EMAILS).map(email => email.toLowerCase());
 
 export default {
   ...raw,
   isProduction: raw.NODE_ENV === 'production',
   allowedOrigins,
-  extensionOrigins
+  extensionOrigins,
+  adminEmails
 };
 
