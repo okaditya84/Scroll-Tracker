@@ -3,6 +3,7 @@ import env from '../config/env.js';
 import OtpCode, { OtpCodeDocument, OtpPurpose } from '../models/OtpCode.js';
 import { sendMail } from '../utils/mailer.js';
 import logger from '../utils/logger.js';
+import HttpError from '../utils/httpError.js';
 
 const OTP_CODE_LENGTH = 6;
 
@@ -50,7 +51,7 @@ export const issueOtp = async ({ email, purpose, metadata, context, ttlMinutes }
   });
 
   if (recentCount >= env.OTP_THROTTLE_PER_HOUR) {
-    throw new Error('Too many OTP requests. Please try again later.');
+    throw new HttpError(429, 'Too many OTP requests. Please try again later.');
   }
 
   const code = generateNumericCode();
@@ -76,7 +77,7 @@ export const issueOtp = async ({ email, purpose, metadata, context, ttlMinutes }
   } catch (error) {
     logger.error({ error }, 'Failed to deliver OTP email');
     await otp.deleteOne();
-    throw new Error('Email delivery failed. Please try again later.');
+    throw new HttpError(502, 'Email delivery failed. Please try again later.');
   }
 
   return { id: otp._id?.toString?.() ?? '', expiresAt: otp.expiresAt };
@@ -97,18 +98,18 @@ export const verifyOtp = async ({ email, purpose, code }: VerifyOtpOptions) => {
   const normalizedEmail = email.toLowerCase().trim();
   const otp = await OtpCode.findOne({ email: normalizedEmail, purpose, status: 'pending' }).sort({ createdAt: -1 });
   if (!otp) {
-    throw new Error('No active OTP request found.');
+    throw new HttpError(404, 'No active OTP request found.');
   }
 
   const now = new Date();
   if (otp.expiresAt < now) {
     await failWithStatus(otp, 'expired');
-    throw new Error('The code has expired. Please request a new one.');
+    throw new HttpError(410, 'The code has expired. Please request a new one.');
   }
 
   if (otp.attempts >= otp.maxAttempts) {
     await failWithStatus(otp, 'locked');
-    throw new Error('Too many incorrect attempts. Please request a new code.');
+    throw new HttpError(423, 'Too many incorrect attempts. Please request a new code.');
   }
 
   const matches = await bcrypt.compare(code, otp.codeHash);
@@ -120,7 +121,7 @@ export const verifyOtp = async ({ email, purpose, code }: VerifyOtpOptions) => {
     } else {
       await otp.save();
     }
-    throw new Error('Incorrect code.');
+    throw new HttpError(400, 'Incorrect code.');
   }
 
   otp.usedAt = now;

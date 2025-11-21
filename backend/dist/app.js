@@ -1,3 +1,4 @@
+import 'express-async-errors';
 import express from 'express';
 import * as Sentry from '@sentry/node';
 import cookieParser from 'cookie-parser';
