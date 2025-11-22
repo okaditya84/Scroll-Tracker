@@ -7,6 +7,9 @@ export interface TrackingEventDocument extends Document {
   type: TrackingEventType;
   durationMs?: number;
   scrollDistance?: number;
+  scrollSpeed?: number;
+  maxScrollDepth?: number;
+  interactionType?: 'passive' | 'active';
   idempotencyKey?: string;
   url: string;
   domain: string;
@@ -25,6 +28,9 @@ const trackingEventSchema = new Schema<TrackingEventDocument>(
     },
     durationMs: { type: Number },
     scrollDistance: { type: Number },
+    scrollSpeed: { type: Number }, // pixels per second
+    maxScrollDepth: { type: Number }, // percentage 0-100
+    interactionType: { type: String, enum: ['passive', 'active'], default: 'passive' },
     url: { type: String, required: true },
     domain: { type: String, required: true },
     metadata: { type: Schema.Types.Mixed, default: {} },

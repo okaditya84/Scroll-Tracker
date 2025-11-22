@@ -97,7 +97,7 @@ const scheduleIdleTimer = () => {
     }
     const now = Date.now();
     const elapsed = Math.max(now - lastActionAt, IDLE_THRESHOLD_MS);
-      void pushEvent({
+    void pushEvent({
       type: 'idle',
       url: location.href,
       domain: urlDomain(location.href),
@@ -490,11 +490,21 @@ const recordScrollForTarget = (target: ScrollKey, source: ScrollSource = 'scroll
   }
   scrollOffsets.set(target, current);
   const now = Date.now();
-    void pushEvent({
+
+  const durationSeconds = (now - lastActionAt) / 1000;
+  const speed = durationSeconds > 0 ? Math.round(delta / durationSeconds) : 0;
+
+  const scrollHeight = document.body.scrollHeight || document.documentElement.scrollHeight;
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const depth = scrollHeight > 0 ? Math.round(((scrollTop + window.innerHeight) / scrollHeight) * 100) : 0;
+
+  void pushEvent({
     type: 'scroll',
     url: location.href,
     domain: urlDomain(location.href),
     scrollDistance: delta,
+    scrollSpeed: speed,
+    maxScrollDepth: depth,
     durationMs: now - lastActionAt,
     startedAt: new Date(lastActionAt).toISOString(),
     metadata: {
@@ -555,7 +565,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 const handleClick = (event: MouseEvent) => {
   const now = Date.now();
-    void pushEvent({
+  void pushEvent({
     type: 'click',
     url: location.href,
     domain: urlDomain(location.href),
@@ -586,7 +596,7 @@ const handleMouseMove = () => {
 const handleVisibilityChange = () => {
   const nowVisible = document.visibilityState === 'visible';
   const now = Date.now();
-    void pushEvent({
+  void pushEvent({
     type: nowVisible ? 'focus' : 'blur',
     url: location.href,
     domain: urlDomain(location.href),
@@ -666,8 +676,52 @@ if (isRuntimeAvailable()) {
       sendResponse({ ok: true });
       return;
     }
+
+    if (message.type === 'SHOW_BLOCK_OVERLAY') {
+      showBlockOverlay();
+      sendResponse({ ok: true });
+      return;
+    }
   });
 }
+
+const showBlockOverlay = () => {
+  if (document.getElementById('scrollwise-block-overlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'scrollwise-block-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 2147483647;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: system-ui, -apple-system, sans-serif;
+    text-align: center;
+  `;
+
+  const title = document.createElement('h1');
+  title.textContent = 'Deep Work Mode Active';
+  title.style.fontSize = '3rem';
+  title.style.marginBottom = '1rem';
+
+  const message = document.createElement('p');
+  message.textContent = "You've blocked this site to stay focused. Get back to work!";
+  message.style.fontSize = '1.5rem';
+  message.style.color = '#ccc';
+
+  overlay.appendChild(title);
+  overlay.appendChild(message);
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+};
 
 resetIdleTimer();
 

@@ -13,6 +13,8 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Analytics', href: '/dashboard/analytics' },
+  { label: 'Focus Mode', href: '/dashboard/focus' },
   { label: 'Admin', href: '/admin', requireAdmin: true },
   { label: 'Terms', href: '/legal/terms' },
   { label: 'Privacy', href: '/legal/privacy' },
@@ -53,9 +55,8 @@ const AppShell = ({ children }: { children: ReactNode }) => {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`rounded-full px-3 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900 ${
-                    pathname?.startsWith(link.href) ? 'text-slate-900 dark:text-white' : ''
-                  }`}
+                  className={`rounded-full px-3 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-900 ${pathname?.startsWith(link.href) ? 'text-slate-900 dark:text-white' : ''
+                    }`}
                 >
                   {link.label}
                 </Link>

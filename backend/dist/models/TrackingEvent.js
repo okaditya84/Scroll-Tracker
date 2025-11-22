@@ -8,6 +8,9 @@ const trackingEventSchema = new Schema({
     },
     durationMs: { type: Number },
     scrollDistance: { type: Number },
+    scrollSpeed: { type: Number }, // pixels per second
+    maxScrollDepth: { type: Number }, // percentage 0-100
+    interactionType: { type: String, enum: ['passive', 'active'], default: 'passive' },
     url: { type: String, required: true },
     domain: { type: String, required: true },
     metadata: { type: Schema.Types.Mixed, default: {} },

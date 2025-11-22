@@ -6,6 +6,9 @@ export interface TrackingPayload {
   domain: string;
   durationMs?: number;
   scrollDistance?: number;
+  scrollSpeed?: number;
+  maxScrollDepth?: number;
+  interactionType?: 'passive' | 'active';
   startedAt?: string;
   metadata?: Record<string, unknown>;
 }

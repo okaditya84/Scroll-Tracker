@@ -137,7 +137,50 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch(error => sendResponse({ enabled: false, error: (error as Error)?.message ?? 'unknown' }));
     return true;
   }
+
+  // Focus Mode Handlers
+  if (message.type === 'FOCUS_START') {
+    focusState = {
+      isActive: true,
+      endTime: message.payload.endTime,
+      blocklist: message.payload.blocklist || []
+    };
+    broadcastToTabs({ type: 'FOCUS_STATE_UPDATE', payload: focusState });
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'FOCUS_STOP') {
+    focusState = { isActive: false, endTime: 0, blocklist: [] };
+    broadcastToTabs({ type: 'FOCUS_STATE_UPDATE', payload: focusState });
+    sendResponse({ ok: true });
+    return true;
+  }
+
   return false;
+});
+
+// Focus Mode State
+let focusState = {
+  isActive: false,
+  endTime: 0,
+  blocklist: [] as string[]
+};
+
+const isBlocked = (url: string) => {
+  if (!focusState.isActive) return false;
+  try {
+    const hostname = new URL(url).hostname;
+    return focusState.blocklist.some(domain => hostname.includes(domain));
+  } catch {
+    return false;
+  }
+};
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && isBlocked(tab.url)) {
+    chrome.tabs.sendMessage(tabId, { type: 'SHOW_BLOCK_OVERLAY' }).catch(() => undefined);
+  }
 });
 
 chrome.alarms.onAlarm.addListener(async alarm => {

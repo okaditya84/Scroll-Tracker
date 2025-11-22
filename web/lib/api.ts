@@ -212,6 +212,42 @@ export interface PolicyPayload {
   updatedAt: string;
 }
 
+export interface AnalyticsDashboardResponse {
+  mostVisited: Array<{ _id: string; count: number; domain: string }>;
+  activityHeatmap: Array<{ _id: number; count: number }>;
+  scrollStats: {
+    avgScrollSpeed: number;
+    maxScrollSpeed: number;
+    totalScrollDistance: number;
+  };
+  doomScrolls: Array<{
+    _id: string;
+    url: string;
+    domain: string;
+    durationMs: number;
+    startedAt: string;
+  }>;
+}
+
+export interface FocusSettings {
+  blocklist: string[];
+  strictMode: boolean;
+  dailyGoalMinutes: number;
+}
+
+export interface FocusSession {
+  startTime: string;
+  endTime?: string;
+  durationMinutes?: number;
+  success?: boolean;
+  interruptionCount?: number;
+}
+
+export interface FocusStatsResponse {
+  settings: FocusSettings;
+  history: FocusSession[];
+}
+
 export interface ContactMessagePayload {
   _id: string;
   name: string;
@@ -429,5 +465,31 @@ export const api = {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: JSON.stringify(body)
+    }),
+
+  // Analytics & Focus endpoints
+  analyticsDashboard: (token: string) =>
+    request<AnalyticsDashboardResponse>('/analytics/dashboard', {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  focusStats: (token: string) =>
+    request<FocusStatsResponse>('/analytics/focus', {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  updateFocusSettings: (token: string, body: Partial<FocusSettings>) =>
+    request<FocusSettings>('/focus/settings', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body)
+    }),
+  startFocusSession: (token: string) =>
+    request<{ message: string; session: FocusSession }>('/focus/session/start', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  endFocusSession: (token: string) =>
+    request<{ message: string; session: FocusSession }>('/focus/session/end', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
     })
 };

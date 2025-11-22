@@ -12,6 +12,18 @@ export interface UserDocument extends Document {
     dailyGoalMinutes?: number;
     notificationsEnabled?: boolean;
   };
+  focusSettings?: {
+    blocklist: string[];
+    strictMode: boolean;
+    dailyGoalMinutes: number;
+  };
+  focusSessions?: {
+    startTime: Date;
+    endTime?: Date;
+    durationMinutes?: number;
+    success?: boolean;
+    interruptionCount?: number;
+  }[];
   role?: 'user' | 'admin' | 'superadmin';
   accountStatus?: 'active' | 'invited' | 'suspended';
   tracking?: {
@@ -51,6 +63,18 @@ const userSchema = new Schema<UserDocument>(
       dailyGoalMinutes: { type: Number, default: 120 },
       notificationsEnabled: { type: Boolean, default: true }
     },
+    focusSettings: {
+      blocklist: [{ type: String }],
+      strictMode: { type: Boolean, default: false },
+      dailyGoalMinutes: { type: Number, default: 240 } // 4 hours deep work
+    },
+    focusSessions: [{
+      startTime: { type: Date, required: true },
+      endTime: { type: Date },
+      durationMinutes: { type: Number },
+      success: { type: Boolean },
+      interruptionCount: { type: Number, default: 0 }
+    }],
     tracking: {
       paused: { type: Boolean, default: false },
       pausedAt: { type: Date },
