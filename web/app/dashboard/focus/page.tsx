@@ -14,6 +14,7 @@ export default function FocusPage() {
     const [blocklistInput, setBlocklistInput] = useState('');
     const [strictMode, setStrictMode] = useState(false);
     const [dailyGoal, setDailyGoal] = useState(30);
+    const [sessionDuration, setSessionDuration] = useState(25);
 
     useEffect(() => {
         if (!loading && !accessToken) {
@@ -42,6 +43,7 @@ export default function FocusPage() {
         queryKey: ['focus-stats'],
         queryFn: () => runWithRefresh(token => api.focusStats(token)),
         enabled: Boolean(accessToken),
+        refetchInterval: 5000 // Poll frequently for active session updates
     });
 
     // Initialize form state when data loads
@@ -52,6 +54,9 @@ export default function FocusPage() {
             setDailyGoal(data.settings.dailyGoalMinutes);
         }
     }, [data]);
+
+    const activeSession = data?.history.find(s => !s.endTime);
+    const history = data?.history.filter(s => s.endTime).reverse() || [];
 
     const updateSettingsMutation = useMutation({
         mutationFn: (settings: Partial<FocusSettings>) =>
@@ -64,18 +69,24 @@ export default function FocusPage() {
     });
 
     const startSessionMutation = useMutation({
-        mutationFn: () => runWithRefresh(token => api.startFocusSession(token)),
+        mutationFn: () => runWithRefresh(token => api.startSession(token, sessionDuration)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-            alert('Focus session started! Good luck.');
-        }
+        },
+        onError: (error) => alert(`Failed to start session: ${error}`)
     });
 
     const endSessionMutation = useMutation({
         mutationFn: () => runWithRefresh(token => api.endFocusSession(token)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-            alert('Focus session ended.');
+        },
+        onError: (error: any) => {
+            if (error.status === 403) {
+                alert(error.message || 'Strict mode is active. You cannot end the session early.');
+            } else {
+                alert(`Failed to end session: ${error}`);
+            }
         }
     });
 
@@ -93,27 +104,9 @@ export default function FocusPage() {
     return (
         <main className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white">
             <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-                <header className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">Focus Mode</h1>
-                        <p className="text-slate-600 dark:text-slate-400 mt-2">Eliminate distractions and get deep work done.</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => startSessionMutation.mutate()}
-                            disabled={startSessionMutation.isPending}
-                            className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
-                        >
-                            Start Session
-                        </button>
-                        <button
-                            onClick={() => endSessionMutation.mutate()}
-                            disabled={endSessionMutation.isPending}
-                            className="rounded-xl border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-50"
-                        >
-                            End Session
-                        </button>
-                    </div>
+                <header className="mb-8">
+                    <h1 className="text-3xl font-bold">Focus Mode</h1>
+                    <p className="text-slate-600 dark:text-slate-400 mt-2">Eliminate distractions and get deep work done.</p>
                 </header>
 
                 {isLoading ? (
@@ -123,6 +116,56 @@ export default function FocusPage() {
                     </div>
                 ) : (
                     <div className="space-y-8">
+                        {/* Active Session Card */}
+                        {activeSession ? (
+                            <section className="rounded-xl border border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-900 dark:bg-blue-950/30">
+                                <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100 mb-2">Focus Session Active</h2>
+                                <p className="text-blue-700 dark:text-blue-300 mb-6">
+                                    Started at {new Date(activeSession.startTime).toLocaleTimeString()} • {activeSession.durationMinutes} min goal
+                                </p>
+                                <div className="flex justify-center gap-4">
+                                    <button
+                                        onClick={() => endSessionMutation.mutate()}
+                                        disabled={endSessionMutation.isPending || (strictMode && !hasSessionEnded(activeSession))}
+                                        className="rounded-xl bg-red-600 px-8 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {strictMode && !hasSessionEnded(activeSession) ? 'Locked (Strict Mode)' : 'End Session'}
+                                    </button>
+                                </div>
+                                {strictMode && !hasSessionEnded(activeSession) && (
+                                    <p className="mt-4 text-sm text-blue-600 dark:text-blue-400">
+                                        Strict mode is on. You cannot stop until the timer finishes.
+                                    </p>
+                                )}
+                            </section>
+                        ) : (
+                            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <h2 className="mb-4 text-xl font-bold">Start a Session</h2>
+                                <div className="flex items-end gap-4">
+                                    <div className="flex-1">
+                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            Duration (minutes)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={sessionDuration}
+                                            onChange={(e) => setSessionDuration(Number(e.target.value))}
+                                            min="1"
+                                            max="180"
+                                            className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={() => startSessionMutation.mutate()}
+                                        disabled={startSessionMutation.isPending}
+                                        className="h-[42px] rounded-xl bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                                    >
+                                        Start Focus
+                                    </button>
+                                </div>
+                            </section>
+                        )}
+
                         {/* Settings Card */}
                         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <h2 className="mb-6 text-xl font-bold">Focus Settings</h2>
@@ -144,7 +187,7 @@ export default function FocusPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Strict Mode</label>
-                                        <p className="text-xs text-slate-500">Prevent ending sessions early (coming soon)</p>
+                                        <p className="text-xs text-slate-500">Prevent ending sessions early</p>
                                     </div>
                                     <button
                                         onClick={() => setStrictMode(!strictMode)}
@@ -186,8 +229,8 @@ export default function FocusPage() {
                         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <h2 className="mb-6 text-xl font-bold">Recent Sessions</h2>
                             <div className="space-y-4">
-                                {data?.history && data.history.length > 0 ? (
-                                    data.history.slice(0, 5).map((session, i) => (
+                                {history.length > 0 ? (
+                                    history.slice(0, 5).map((session, i) => (
                                         <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 p-4 dark:border-slate-800">
                                             <div>
                                                 <p className="font-medium text-slate-900 dark:text-white">
@@ -199,7 +242,7 @@ export default function FocusPage() {
                                             </div>
                                             <div className="text-right">
                                                 <p className="font-bold text-slate-900 dark:text-white">
-                                                    {session.durationMinutes} min
+                                                    {session.durationMinutes ? Math.round(session.durationMinutes) : 0} min
                                                 </p>
                                                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${session.success
                                                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -211,7 +254,7 @@ export default function FocusPage() {
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-center text-slate-500 py-8">No focus sessions yet. Start one today!</p>
+                                    <p className="text-center text-slate-500 py-8">No completed sessions yet.</p>
                                 )}
                             </div>
                         </section>
@@ -220,4 +263,10 @@ export default function FocusPage() {
             </div>
         </main>
     );
+}
+
+function hasSessionEnded(session: any) {
+    if (!session || !session.startTime || !session.durationMinutes) return true;
+    const end = new Date(session.startTime).getTime() + session.durationMinutes * 60000;
+    return Date.now() >= end;
 }

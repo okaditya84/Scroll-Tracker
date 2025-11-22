@@ -482,10 +482,11 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body)
     }),
-  startFocusSession: (token: string) =>
+  startSession: (token: string, durationMinutes?: number) =>
     request<{ message: string; session: FocusSession }>('/focus/session/start', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ durationMinutes })
     }),
   endFocusSession: (token: string) =>
     request<{ message: string; session: FocusSession }>('/focus/session/end', {

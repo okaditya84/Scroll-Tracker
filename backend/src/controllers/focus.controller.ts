@@ -40,15 +40,25 @@ export const startSession = async (req: AuthRequest, res: Response) => {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const { durationMinutes } = req.body;
+
     try {
         const user = await User.findById(req.user.sub);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Logic to ensure no overlapping sessions could be added here
+        // Check if there's already an active session
+        const activeSession = user.focusSessions?.find(s => !s.endTime);
+        if (activeSession) {
+            return res.status(400).json({ error: 'Session already active' });
+        }
+
+        const sessionDuration = durationMinutes || user.focusSettings?.dailyGoalMinutes || 25;
+
         const session = {
             startTime: new Date(),
+            durationMinutes: sessionDuration,
             success: false, // pending
             interruptionCount: 0
         };
@@ -57,6 +67,7 @@ export const startSession = async (req: AuthRequest, res: Response) => {
         user.focusSessions.push(session);
         await user.save();
 
+        console.log(`[Focus] Started session for user ${user.email}. Duration: ${sessionDuration}m`);
         res.json({ session });
     } catch (error) {
         console.error('Start Session Error:', error);
@@ -82,13 +93,31 @@ export const endSession = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'Last session already ended' });
         }
 
+        // Strict Mode Check
+        if (user.focusSettings?.strictMode) {
+            const now = new Date();
+            const endTime = new Date(lastSession.startTime.getTime() + (lastSession.durationMinutes || 25) * 60000);
+            if (now < endTime) {
+                console.log(`[Focus] Strict mode prevented early exit for user ${user.email}`);
+                return res.status(403).json({
+                    error: 'Strict mode active. You cannot end the session early.',
+                    remainingMinutes: Math.ceil((endTime.getTime() - now.getTime()) / 60000)
+                });
+            }
+        }
+
         lastSession.endTime = new Date();
-        lastSession.durationMinutes = (lastSession.endTime.getTime() - lastSession.startTime.getTime()) / 60000;
-        lastSession.success = success;
+        // Recalculate actual duration if needed, or keep the planned duration? 
+        // Usually we want to know how long they actually stayed.
+        // But for success/failure, we compare against planned.
+        // Let's store actual duration in a separate field if we had one, but for now we can just update endTime.
+
+        lastSession.success = success ?? true; // Default to true if manually ended (and allowed)
         lastSession.interruptionCount = interruptionCount || 0;
 
         await user.save();
 
+        console.log(`[Focus] Ended session for user ${user.email}. Success: ${lastSession.success}`);
         res.json({ session: lastSession });
     } catch (error) {
         console.error('End Session Error:', error);

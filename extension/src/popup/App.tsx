@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { AuthState } from '@/storage/auth';
 import { getAuthState, updateTrackingEnabled } from '@/storage/auth';
+import { FocusControl } from './FocusControl';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const WEB_URL = import.meta.env.VITE_WEB_URL;
@@ -16,37 +17,6 @@ const sendRuntimeMessage = <T,>(message: unknown) =>
       resolve(response as T);
     });
   });
-
-const formatActiveCaption = (minutes: number) => {
-  if (minutes <= 20) return 'Light session so far—short bursts like this are great.';
-  if (minutes <= 120) return 'Solid pace. Staying under two hours keeps energy steady.';
-  if (minutes <= 180) return 'You are in deep focus—plan a leg stretch within the next 15 minutes.';
-  return 'Crossed the three-hour mark—schedule a longer screen break to reset.';
-};
-
-const formatScrollCaption = (pixels: number) => {
-  // 96 pixels = 2.54 cm (standard web DPI)
-  const cm = pixels * (2.54 / 96);
-  const km = cm / 100000;
-
-  if (km >= 0.1) {
-    if (pixels <= 20000) return `Light scrolling—just ${(km * 1000).toFixed(1)} meters of content.`;
-    if (pixels <= 60000) return `Nice scroll distance—about ${km.toFixed(2)} km worth of reading!`;
-    if (pixels <= 120000) return `Impressive scroll—over ${km.toFixed(2)} km of content covered.`;
-    return `Marathon scrolling—you've scrolled the equivalent of ${km.toFixed(1)} kilometers!`;
-  }
-
-  if (pixels <= 20000) return 'Gentle scrolling day—keep posture relaxed and continue pacing.';
-  if (pixels <= 60000) return 'Healthy reading streak—stand up briefly every hour to stay fresh.';
-  if (pixels <= 120000) return 'Big scroll session—roll your shoulders and rest your eyes for a minute.';
-  return 'Huge scroll distance—step away for a longer reset to avoid fatigue.';
-};
-
-const formatClickCaption = (clicks: number) => {
-  if (clicks <= 100) return 'Plenty of room for focused deep work—keep it steady.';
-  if (clicks <= 250) return 'Steady clicking pace—stretch your fingers occasionally.';
-  return 'High click count—use micro-breaks to prevent hand strain.';
-};
 
 const App = () => {
   const [auth, setAuth] = useState<AuthState | undefined>();
@@ -217,6 +187,8 @@ const App = () => {
 
       {auth?.accessToken && (
         <>
+          <FocusControl token={auth.accessToken} />
+
           <motion.div
             className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 mb-4"
             animate={{ opacity: 1 }}
@@ -231,11 +203,10 @@ const App = () => {
               </div>
               <button
                 onClick={() => handleToggle(!auth.trackingEnabled)}
-                className={`flex items-center justify-center w-12 h-12 rounded-full transition-all ${
-                  auth.trackingEnabled
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                    : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-700 text-slate-700 dark:text-white'
-                }`}
+                className={`flex items-center justify-center w-12 h-12 rounded-full transition-all ${auth.trackingEnabled
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-700 text-slate-700 dark:text-white'
+                  }`}
                 title={auth.trackingEnabled ? 'Pause tracking' : 'Resume tracking'}
               >
                 {auth.trackingEnabled ? (
