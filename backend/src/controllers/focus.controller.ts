@@ -88,15 +88,20 @@ export const endSession = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'No active session found' });
         }
 
-        const lastSession = user.focusSessions[user.focusSessions.length - 1];
-        if (lastSession.endTime) {
-            return res.status(400).json({ error: 'Last session already ended' });
+        // Find the active session (one without endTime)
+        // We search from the end of the array backwards, just in case, but find() is fine.
+        // Actually, find() returns the first one. If there are multiple, we should probably end the most recent one?
+        // But startSession prevents multiple. So find() is safe.
+        const activeSession = user.focusSessions.find(s => !s.endTime);
+
+        if (!activeSession) {
+            return res.status(400).json({ error: 'No active session to end' });
         }
 
         // Strict Mode Check
         if (user.focusSettings?.strictMode) {
             const now = new Date();
-            const endTime = new Date(lastSession.startTime.getTime() + (lastSession.durationMinutes || 25) * 60000);
+            const endTime = new Date(activeSession.startTime.getTime() + (activeSession.durationMinutes || 25) * 60000);
             if (now < endTime) {
                 console.log(`[Focus] Strict mode prevented early exit for user ${user.email}`);
                 return res.status(403).json({
@@ -106,19 +111,14 @@ export const endSession = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        lastSession.endTime = new Date();
-        // Recalculate actual duration if needed, or keep the planned duration? 
-        // Usually we want to know how long they actually stayed.
-        // But for success/failure, we compare against planned.
-        // Let's store actual duration in a separate field if we had one, but for now we can just update endTime.
-
-        lastSession.success = success ?? true; // Default to true if manually ended (and allowed)
-        lastSession.interruptionCount = interruptionCount || 0;
+        activeSession.endTime = new Date();
+        activeSession.success = success ?? true; // Default to true if manually ended (and allowed)
+        activeSession.interruptionCount = interruptionCount || 0;
 
         await user.save();
 
-        console.log(`[Focus] Ended session for user ${user.email}. Success: ${lastSession.success}`);
-        res.json({ session: lastSession });
+        console.log(`[Focus] Ended session for user ${user.email}. Success: ${activeSession.success}`);
+        res.json({ session: activeSession });
     } catch (error) {
         console.error('End Session Error:', error);
         res.status(500).json({ error: 'Failed to end session' });
