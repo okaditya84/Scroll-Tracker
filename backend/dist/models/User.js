@@ -15,7 +15,8 @@ const userSchema = new Schema({
     focusSettings: {
         blocklist: [{ type: String }],
         strictMode: { type: Boolean, default: false },
-        dailyGoalMinutes: { type: Number, default: 240 } // 4 hours deep work
+        dailyGoalMinutes: { type: Number, default: 240 }, // 4 hours deep work
+        dailyLimitMinutes: { type: Number, default: 30 } // 30 mins distraction limit
     },
     focusSessions: [{
             startTime: { type: Date, required: true },

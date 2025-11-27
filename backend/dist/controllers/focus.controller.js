@@ -3,7 +3,8 @@ import { z } from 'zod';
 const settingsSchema = z.object({
     blocklist: z.array(z.string()).optional(),
     strictMode: z.boolean().optional(),
-    dailyGoalMinutes: z.number().optional()
+    dailyGoalMinutes: z.number().optional(),
+    dailyLimitMinutes: z.number().optional()
 });
 export const updateSettings = async (req, res) => {
     if (!req.user) {

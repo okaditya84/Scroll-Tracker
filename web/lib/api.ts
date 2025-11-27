@@ -233,6 +233,7 @@ export interface FocusSettings {
   blocklist: string[];
   strictMode: boolean;
   dailyGoalMinutes: number;
+  dailyLimitMinutes: number;
 }
 
 export interface FocusSession {
@@ -246,6 +247,7 @@ export interface FocusSession {
 export interface FocusStatsResponse {
   settings: FocusSettings;
   history: FocusSession[];
+  usageMinutes: number;
 }
 
 export interface ContactMessagePayload {
