@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import DailyMetric from '../models/DailyMetric.js';
 import Insight from '../models/Insight.js';
 import { callGroq } from '../utils/groqClient.js';
-import { pixelsToClimbometers, pixelsToKilometers, formatScrollDistanceWithBoth, getScrollDistanceDescription } from '../utils/scrollConversion.js';
+import { pixelsToClimbometers, pixelsToKilometers } from '../utils/scrollConversion.js';
 import logger from '../utils/logger.js';
 const toMinutes = (valueMs) => Math.round((valueMs ?? 0) / 60000);
 export const getLatest = async (userId, limit = 10) => {
@@ -65,6 +65,11 @@ export const generateInsight = async (userId, metricDate, regenerate = false) =>
     const scrollPerActiveMinuteCm = totalActive > 0 ? pixelsToClimbometers(scrollPerActiveMinute ?? 0) : null;
     const clicksPerActiveMinute = totalActive > 0 ? Number((totalClicks / totalActive).toFixed(1)) : null;
     const activeVsGoal = totalActive - 120;
+    // Analogies Context
+    const caloriesBurned = Math.round(totalActive * 1.5); // Approx 1.5 cal/min for desk work
+    const everestHeightCm = 884900;
+    const burjKhalifaHeightCm = 82800;
+    const scrollHeightRatio = totalScrollCm / 170; // Assuming avg human height 170cm
     const context = {
         date,
         totals: {
@@ -100,11 +105,30 @@ export const generateInsight = async (userId, metricDate, regenerate = false) =>
     const prompt = [
         {
             role: 'system',
-            content: `You are Scrollwise, a creative and humorous metrics coach. Generate three unique and engaging analogies based on the provided data:\n- Use movement or distance creatively, leveraging scroll conversions.\n- Highlight productivity or output, incorporating clicks or active minutes.\n- Focus on wellbeing or pacing, using active vs idle minutes or peak hours.\nLet the analogies be intuitive, non-repetitive, and cover a wide variety of topics. Avoid hardcoding categories; think creatively for analogies. Use precise numbers provided without inventing new units. Keep the tone optimistic, relatable, and fun. Stay under 160 words. Format as three bullet points starting with a single emoji.`
+            content: `You are Scrollwise, a witty and realistic productivity companion. Your goal is to provide 3 distinct, funny, and realistic analogies based on the user's browsing stats.
+      
+      **Guidelines:**
+      1.  **Physical Analogies:** Compare their scroll distance to real-world objects (e.g., "You scrolled the height of the Eiffel Tower", "You climbed 3 flights of stairs with your thumb"). Use the provided cm/km data.
+      2.  **Energy Output:** Mention calories burned (approx ${caloriesBurned} cal) or energy expended (e.g., "You burned enough calories to power a lightbulb for 5 minutes").
+      3.  **Time/Focus:** Relate their active time to something tangible (e.g., "You spent enough time online to watch 'The Office' twice").
+      
+      **Tone:** Humorous, slightly roast-y but encouraging, and VERY realistic. Avoid generic "good job" messages. Make them feel the weight of their digital actions.
+      
+      **Format:** Return exactly 3 bullet points, each starting with a relevant emoji.`
         },
         {
             role: 'user',
-            content: `Metrics: Active minutes: ${totalActive}, Idle minutes: ${totalIdle}, Scroll distance: ${totalScroll} pixels (${formatScrollDistanceWithBoth(totalScroll)}), Clicks: ${totalClicks}. \n\nTop domains: ${topDomains.map(d => `${d.domain} (${d.activeMinutes} min, ${d.scrollDistance} px / ${d.scrollDistanceCm.toFixed(1)} cm)`).join(', ')}. \n\nPeak hours: ${peakHours.map(h => `${h.hour}:00 (${h.activeMinutes} min)`).join(', ')}.\n\nScroll distance context: You scrolled the equivalent of ${getScrollDistanceDescription(totalScroll)} today.`
+            content: `Stats:
+      - Active Time: ${totalActive} min (approx ${caloriesBurned} calories burned)
+      - Scroll Distance: ${totalScroll} px (${totalScrollCm.toFixed(1)} cm / ${totalScrollKm.toFixed(3)} km)
+      - Clicks: ${totalClicks}
+      - Top Sites: ${topDomains.map(d => d.domain).join(', ')}
+      
+      Context:
+      - Scrolled approx ${(totalScrollCm / burjKhalifaHeightCm).toFixed(4)}x Burj Khalifas.
+      - Scrolled approx ${scrollHeightRatio.toFixed(1)}x human heights.
+      
+      Give me 3 funny, realistic insights.`
         }
     ];
     const MAX_ATTEMPTS = 3;
