@@ -8,6 +8,9 @@ interface RecordEventInput {
   type: TrackingEventType;
   durationMs?: number;
   scrollDistance?: number;
+  scrollSpeed?: number;
+  maxScrollDepth?: number;
+  interactionType?: 'passive' | 'active';
   idempotencyKey?: string;
   url: string;
   domain: string;
@@ -35,6 +38,9 @@ export const recordEvents = async (userId: string, events: RecordEventInput[]) =
       type: e.type,
       durationMs: e.durationMs,
       scrollDistance: e.scrollDistance,
+      scrollSpeed: e.scrollSpeed,
+      maxScrollDepth: e.maxScrollDepth,
+      interactionType: e.interactionType,
       url: e.url,
       domain: e.domain,
       metadata: e.metadata ?? {},
@@ -49,6 +55,9 @@ export const recordEvents = async (userId: string, events: RecordEventInput[]) =
       type: e.type,
       durationMs: e.durationMs,
       scrollDistance: e.scrollDistance,
+      scrollSpeed: e.scrollSpeed,
+      maxScrollDepth: e.maxScrollDepth,
+      interactionType: e.interactionType,
       url: e.url,
       domain: e.domain,
       metadata: e.metadata ?? {},
@@ -164,13 +173,13 @@ export const getSummary = async (userId: string) => {
   // Add conversions to today's metric
   const todayWithConversions = todayMetric
     ? {
-        ...todayMetric,
-        totals: {
-          ...todayMetric.totals,
-          scrollDistanceCm: pixelsToClimbometers(todayMetric.totals?.scrollDistance ?? 0),
-          scrollDistanceKm: pixelsToKilometers(todayMetric.totals?.scrollDistance ?? 0)
-        }
+      ...todayMetric,
+      totals: {
+        ...todayMetric.totals,
+        scrollDistanceCm: pixelsToClimbometers(todayMetric.totals?.scrollDistance ?? 0),
+        scrollDistanceKm: pixelsToKilometers(todayMetric.totals?.scrollDistance ?? 0)
       }
+    }
     : null;
 
   // Add conversions to weekly data
