@@ -141,6 +141,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // Focus Mode Handlers
   if (message.type === 'FOCUS_START') {
     focusState = {
+      ...focusState,
       isActive: true,
       endTime: message.payload.endTime,
       blocklist: message.payload.blocklist || []
@@ -151,7 +152,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'FOCUS_STOP') {
-    focusState = { isActive: false, endTime: 0, blocklist: [] };
+    focusState = {
+      ...focusState,
+      isActive: false,
+      endTime: 0,
+      blocklist: []
+    };
     broadcastToTabs({ type: 'FOCUS_STATE_UPDATE', payload: focusState });
     sendResponse({ ok: true });
     return true;
@@ -232,7 +238,15 @@ const updateFocusStats = async () => {
       focusState.dailyLimitMinutes = data.settings?.dailyLimitMinutes || 30;
       focusState.usageMinutes = data.usageMinutes || 0;
       focusState.blocklist = data.settings?.blocklist || [];
-      // We don't override isActive here, that's controlled by local/push events
+
+      // CRITICAL FIX: Check all tabs immediately after updating stats
+      // This ensures that if the limit is reached while browsing, the site is blocked immediately.
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (tab.id && tab.url && isBlocked(tab.url)) {
+          chrome.tabs.sendMessage(tab.id, { type: 'SHOW_BLOCK_OVERLAY' }).catch(() => undefined);
+        }
+      }
     }
   } catch (e) {
     console.error('Failed to update focus stats', e);
@@ -250,7 +264,8 @@ chrome.alarms.onAlarm.addListener(alarm => {
 updateFocusStats();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url && isBlocked(tab.url)) {
+  // Check on loading and complete to catch it early and ensure it sticks
+  if ((changeInfo.status === 'loading' || changeInfo.status === 'complete') && tab.url && isBlocked(tab.url)) {
     chrome.tabs.sendMessage(tabId, { type: 'SHOW_BLOCK_OVERLAY' }).catch(() => undefined);
   }
 });

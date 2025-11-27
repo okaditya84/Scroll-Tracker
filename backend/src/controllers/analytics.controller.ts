@@ -11,13 +11,18 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
     const userId = req.user.sub;
     const now = new Date();
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-    const startOfWeek = new Date(now.setDate(now.getDate() - 7));
+    // Clone dates to avoid mutation side-effects
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - 7);
+    startOfWeek.setHours(0, 0, 0, 0);
 
     try {
         // 1. Most Visited Domains (Last 7 Days)
         const mostVisited = await TrackingEvent.aggregate([
-            { $match: { userId: userId, createdAt: { $gte: startOfWeek } } },
+            { $match: { userId: new mongoose.Types.ObjectId(userId), createdAt: { $gte: startOfWeek } } },
             { $group: { _id: '$domain', visitCount: { $sum: 1 }, totalDuration: { $sum: '$durationMs' } } },
             { $sort: { visitCount: -1 } },
             { $limit: 10 }
@@ -25,7 +30,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
         // 2. Activity Heatmap (Hour of Day)
         const activityHeatmap = await TrackingEvent.aggregate([
-            { $match: { userId: userId, createdAt: { $gte: startOfWeek } } },
+            { $match: { userId: new mongoose.Types.ObjectId(userId), createdAt: { $gte: startOfWeek } } },
             {
                 $project: {
                     hour: { $hour: '$createdAt' },
@@ -38,7 +43,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
         // 3. Average Scroll Speed & Doom Scroll Detection
         const scrollStats = await TrackingEvent.aggregate([
-            { $match: { userId: userId, type: 'scroll', createdAt: { $gte: startOfWeek } } },
+            { $match: { userId: new mongoose.Types.ObjectId(userId), type: 'scroll', createdAt: { $gte: startOfWeek } } },
             {
                 $group: {
                     _id: null,
@@ -49,16 +54,35 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
             }
         ]);
 
-        // 4. Doom Scroll Candidates (Long duration, passive interaction)
-        const doomScrolls = await TrackingEvent.find({
-            userId: userId,
-            createdAt: { $gte: startOfWeek },
-            durationMs: { $gt: 300000 }, // > 5 mins
-            interactionType: 'passive'
-        })
-            .select('domain url durationMs createdAt')
-            .sort({ durationMs: -1 })
-            .limit(5);
+        // 4. Doom Scroll Candidates (High duration on passive sites today)
+        // Aggregating by domain to find total time spent, rather than single long events
+        const doomScrolls = await TrackingEvent.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId),
+                    createdAt: { $gte: startOfDay },
+                    interactionType: { $ne: 'active' } // Default to passive if not specified
+                }
+            },
+            {
+                $group: {
+                    _id: '$domain',
+                    totalDuration: { $sum: '$durationMs' },
+                    visitCount: { $sum: 1 }
+                }
+            },
+            { $match: { totalDuration: { $gt: 5 * 60 * 1000 } } }, // > 5 mins total today
+            { $sort: { totalDuration: -1 } },
+            { $limit: 5 },
+            {
+                $project: {
+                    domain: '$_id',
+                    durationMs: '$totalDuration',
+                    visitCount: 1,
+                    _id: 0
+                }
+            }
+        ]);
 
         res.json({
             mostVisited,
