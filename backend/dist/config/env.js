@@ -17,8 +17,8 @@ const raw = cleanEnv(process.env, {
     PORT: port({ default: 3000 }),
     MONGODB_URI: str(),
     JWT_SECRET: str(),
-    JWT_EXPIRES_IN: str({ default: '15m' }),
-    JWT_REFRESH_TTL_DAYS: num({ default: 30 }),
+    JWT_EXPIRES_IN: str({ default: '1h' }), // Increased from 15m to reduce refresh frequency
+    JWT_REFRESH_TTL_DAYS: num({ default: 7 }), // Set to 7 days as requested
     GOOGLE_CLIENT_ID: str(),
     GOOGLE_CLIENT_SECRET: str(),
     GROQ_API_KEY: str(),

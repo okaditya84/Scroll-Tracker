@@ -67,16 +67,22 @@ export const refreshTokens = async (refreshToken, req) => {
         throw new Error('User missing');
     }
     user = (await ensureSuperadminRole(user));
-    const nextSecret = generateRefreshSecret();
-    session.refreshTokenHash = await bcrypt.hash(nextSecret, 10);
+    // CRITICAL FIX: Do NOT rotate the refresh token secret.
+    // Rotating it causes race conditions between the Web App and the Extension.
+    // If the Web App refreshes first, the Extension's token becomes invalid, causing logout.
+    // We keep the same secret but update the lastUsedAt and expiration.
+    // const nextSecret = generateRefreshSecret();
+    // session.refreshTokenHash = await bcrypt.hash(nextSecret, 10);
     session.lastUsedAt = new Date();
     session.userAgent = req.get('user-agent') ?? session.userAgent;
     session.ip = req.ip;
+    // Extend the session life on use (Rolling Session)
     session.expiresAt = new Date(Date.now() + env.JWT_REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
     await session.save();
-    const nextRefreshToken = `${session._id.toString()}.${nextSecret}`;
+    // Return the SAME refresh token
+    // const nextRefreshToken = `${session._id.toString()}.${nextSecret}`;
     const accessToken = await buildAccessToken(user, session._id.toString());
-    return { accessToken, refreshToken: nextRefreshToken, session };
+    return { accessToken, refreshToken, session };
 };
 export const revokeRefreshToken = async (refreshToken) => {
     const [sessionId] = refreshToken.split('.');
