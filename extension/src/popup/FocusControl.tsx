@@ -7,6 +7,7 @@ interface FocusSettings {
     blocklist: string[];
     strictMode: boolean;
     dailyGoalMinutes: number;
+    dailyLimitMinutes: number;
 }
 
 interface FocusSession {
@@ -19,6 +20,7 @@ interface FocusSession {
 interface FocusStatsResponse {
     settings: FocusSettings;
     history: FocusSession[];
+    usageMinutes: number;
 }
 
 export const FocusControl = ({ token }: { token: string }) => {
@@ -54,6 +56,9 @@ export const FocusControl = ({ token }: { token: string }) => {
     }, [loadStats]);
 
     const activeSession = stats?.history.find(s => !s.endTime);
+    const dailyLimit = stats?.settings.dailyLimitMinutes || 30;
+    const usage = stats?.usageMinutes || 0;
+    const remaining = Math.max(0, dailyLimit - usage);
 
     const startSession = async () => {
         try {
@@ -112,7 +117,8 @@ export const FocusControl = ({ token }: { token: string }) => {
                 body: JSON.stringify({
                     blocklist,
                     strictMode: stats?.settings.strictMode,
-                    dailyGoalMinutes: stats?.settings.dailyGoalMinutes
+                    dailyGoalMinutes: stats?.settings.dailyGoalMinutes,
+                    dailyLimitMinutes: stats?.settings.dailyLimitMinutes // Preserve existing
                 })
             });
             if (res.ok) {
@@ -203,12 +209,23 @@ export const FocusControl = ({ token }: { token: string }) => {
                 </button>
             </div>
 
+            {/* Daily Limit Countdown */}
+            <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-center">
+                <div className="text-xs text-slate-500 mb-1">Daily Usage Limit</div>
+                <div className={`text-2xl font-bold ${remaining === 0 ? 'text-red-600' : 'text-slate-900 dark:text-white'}`}>
+                    {remaining}m
+                </div>
+                <div className="text-[10px] text-slate-400">
+                    remaining of {dailyLimit}m
+                </div>
+            </div>
+
             {activeSession ? (
                 <div className="text-center py-2">
                     <div className="text-2xl font-bold mb-1">
                         {Math.max(0, Math.ceil((new Date(activeSession.startTime).getTime() + (activeSession.durationMinutes || 25) * 60000 - Date.now()) / 60000))}m
                     </div>
-                    <p className="text-xs text-slate-500 mb-3">remaining</p>
+                    <p className="text-xs text-slate-500 mb-3">session remaining</p>
                     <button
                         onClick={endSession}
                         disabled={stats?.settings.strictMode}
@@ -236,6 +253,9 @@ export const FocusControl = ({ token }: { token: string }) => {
                     >
                         Start Focus Session
                     </button>
+                    <p className="text-[10px] text-center text-slate-400">
+                        Starting a session enforces Strict Mode immediately.
+                    </p>
                 </div>
             )}
         </motion.div>

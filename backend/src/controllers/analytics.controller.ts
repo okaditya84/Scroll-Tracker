@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import TrackingEvent from '../models/TrackingEvent.js';
 import User from '../models/User.js';
+import mongoose from 'mongoose';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     if (!req.user) {
@@ -86,12 +87,41 @@ export const getFocusStats = async (req: AuthRequest, res: Response) => {
         const totalMinutes = sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
         const successCount = sessions.filter(s => s.success).length;
 
+        // Calculate usage on blocklisted domains for today
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const blocklist = user.focusSettings?.blocklist || [];
+        let usageMinutes = 0;
+
+        if (blocklist.length > 0) {
+            const usageStats = await TrackingEvent.aggregate([
+                {
+                    $match: {
+                        userId: new mongoose.Types.ObjectId(req.user.sub),
+                        createdAt: { $gte: startOfDay },
+                        domain: { $in: blocklist } // Match any domain in blocklist
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalDurationMs: { $sum: '$durationMs' }
+                    }
+                }
+            ]);
+            if (usageStats.length > 0) {
+                usageMinutes = Math.ceil(usageStats[0].totalDurationMs / 60000);
+            }
+        }
+
         res.json({
             totalMinutes,
             sessionCount: sessions.length,
             successRate: sessions.length ? (successCount / sessions.length) * 100 : 0,
             history: sessions.slice(-10).reverse(), // Last 10 sessions
-            settings: user.focusSettings
+            settings: user.focusSettings,
+            usageMinutes // New field: Time spent on blocked sites today
         });
     } catch (error) {
         console.error('Focus Stats Error:', error);

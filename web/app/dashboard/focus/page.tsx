@@ -14,6 +14,7 @@ export default function FocusPage() {
     const [blocklistInput, setBlocklistInput] = useState('');
     const [strictMode, setStrictMode] = useState(false);
     const [dailyGoal, setDailyGoal] = useState(30);
+    const [dailyLimit, setDailyLimit] = useState(30);
     const [sessionDuration, setSessionDuration] = useState(25);
 
     useEffect(() => {
@@ -52,6 +53,7 @@ export default function FocusPage() {
             setBlocklistInput(data.settings.blocklist.join('\n'));
             setStrictMode(data.settings.strictMode);
             setDailyGoal(data.settings.dailyGoalMinutes);
+            setDailyLimit(data.settings.dailyLimitMinutes || 30);
         }
     }, [data]);
 
@@ -95,7 +97,8 @@ export default function FocusPage() {
         updateSettingsMutation.mutate({
             blocklist,
             strictMode,
-            dailyGoalMinutes: dailyGoal
+            dailyGoalMinutes: dailyGoal,
+            dailyLimitMinutes: dailyLimit
         });
     };
 
@@ -203,7 +206,20 @@ export default function FocusPage() {
 
                                 <div>
                                     <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                        Daily Focus Goal (minutes)
+                                        Daily Distraction Limit (minutes)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={dailyLimit}
+                                        onChange={(e) => setDailyLimit(Number(e.target.value))}
+                                        className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                    />
+                                    <p className="mt-1 text-xs text-slate-500">Sites in blocklist will be blocked after this much usage.</p>
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        Daily Deep Work Goal (minutes)
                                     </label>
                                     <input
                                         type="number"
@@ -245,8 +261,8 @@ export default function FocusPage() {
                                                     {session.durationMinutes ? Math.round(session.durationMinutes) : 0} min
                                                 </p>
                                                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${session.success
-                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                                                     }`}>
                                                     {session.success ? 'Completed' : 'Interrupted'}
                                                 </span>

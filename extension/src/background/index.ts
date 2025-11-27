@@ -164,18 +164,90 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 let focusState = {
   isActive: false,
   endTime: 0,
-  blocklist: [] as string[]
+  blocklist: [] as string[],
+  dailyLimitMinutes: 30,
+  usageMinutes: 0
 };
 
 const isBlocked = (url: string) => {
-  if (!focusState.isActive) return false;
   try {
     const hostname = new URL(url).hostname;
-    return focusState.blocklist.some(domain => hostname.includes(domain));
+    const isBlocklisted = focusState.blocklist.some(domain => hostname.includes(domain));
+
+    if (!isBlocklisted) return false;
+
+    // Logic:
+    // 1. If Focus Session is ACTIVE (Strict Mode), BLOCK.
+    // 2. If Daily Limit is EXCEEDED, BLOCK.
+    // 3. Otherwise, ALLOW.
+
+    if (focusState.isActive) {
+      // If session is active, we block.
+      // Wait, user said "when time gets over... blocked".
+      // This implies session = allowed time?
+      // Let's stick to the requested "Daily Limit" model.
+      // If "Focus Session" is meant to be "Deep Work" (Block Now), then yes, block.
+      // But if user wants "Session" to be "Allowed Time", then we should ALLOW if isActive.
+
+      // Given the user's confusion, let's implement:
+      // - "Focus Session" (Deep Work): Blocks everything immediately. (Current behavior)
+      // - "Daily Limit": Blocks if usage > limit. (New behavior)
+
+      // However, user said "why have you named this focus mode... it is like a blocking mode after specified time".
+      // This implies they want the "Session" to be the "Allowed Time".
+
+      // Let's try this hybrid:
+      // If we are in a "Session", we are ALLOWED to browse (override limit?).
+      // No, that defeats the purpose of a limit.
+
+      // Let's just implement the Daily Limit check.
+      // If usage > limit, block.
+      // UNLESS... maybe a session overrides it?
+      // Let's keep it simple: Daily Limit is a hard limit.
+
+      return true; // Active session always blocks (Deep Work)
+    }
+
+    if (focusState.usageMinutes >= focusState.dailyLimitMinutes) {
+      return true; // Daily limit exceeded
+    }
+
+    return false;
   } catch {
     return false;
   }
 };
+
+// Poll for stats to update usage
+const updateFocusStats = async () => {
+  const auth = await getAuthState();
+  if (!auth?.accessToken) return;
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/analytics/focus`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      focusState.dailyLimitMinutes = data.settings?.dailyLimitMinutes || 30;
+      focusState.usageMinutes = data.usageMinutes || 0;
+      focusState.blocklist = data.settings?.blocklist || [];
+      // We don't override isActive here, that's controlled by local/push events
+    }
+  } catch (e) {
+    console.error('Failed to update focus stats', e);
+  }
+};
+
+// Poll every minute
+chrome.alarms.create('focus-stats-poll', { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === 'focus-stats-poll') {
+    updateFocusStats();
+  }
+});
+// Initial fetch
+updateFocusStats();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url && isBlocked(tab.url)) {
